@@ -442,3 +442,36 @@ test('thumbnail size follows Ctrl shortcuts, stays bounded, and persists without
   await expect(size).toContainText('200px');
   await page.screenshot({ path: 'test-results/thumbnail-size.png' });
 });
+
+test('image viewer fills the window and can give all space to the image without losing edits', async ({
+  page,
+}) => {
+  await page.getByRole('button', { name: 'Open 01.jpg', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  const preview = page.getByLabel('Image preview', { exact: true });
+  const bounds = await dialog.boundingBox();
+  expect(bounds!.width).toBeGreaterThan(1200);
+  expect(bounds!.height).toBeGreaterThan(840);
+  const initial = await preview.boundingBox();
+  expect(initial!.width).toBeGreaterThan(900);
+  expect(initial!.height).toBeGreaterThan(700);
+  await expect(preview.locator('img')).toHaveCSS('object-fit', 'contain');
+  await expect(dialog.getByRole('button', { name: 'Save changes', exact: true })).toBeInViewport();
+  await page.screenshot({ path: 'test-results/large-image-viewer.png' });
+  await dialog.getByRole('textbox', { name: 'Caption', exact: true }).fill('Unsaved caption');
+  await dialog.getByRole('button', { name: 'Hide details', exact: true }).click();
+  expect((await preview.boundingBox())!.width).toBeGreaterThan(initial!.width + 200);
+  await expect(dialog.getByRole('textbox', { name: 'Caption', exact: true })).toBeHidden();
+  await page.keyboard.press('Escape');
+  await expect(page.getByText('Discard your unsaved changes?')).toBeVisible();
+  await expect(dialog.getByRole('textbox', { name: 'Caption', exact: true })).toHaveValue(
+    'Unsaved caption',
+  );
+  await page.getByRole('button', { name: 'Keep editing' }).click();
+  await page.setViewportSize({ width: 850, height: 650 });
+  await expect(dialog.getByRole('button', { name: 'Save changes', exact: true })).toBeInViewport();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
+  await page.screenshot({ path: 'test-results/large-image-viewer-small.png' });
+});

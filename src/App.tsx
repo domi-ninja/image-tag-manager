@@ -575,6 +575,7 @@ function PhotoDialog({
   onSave: () => Promise<void>;
 }) {
   const [contextError, setContextError] = useState('');
+  const [showDetails, setShowDetails] = useState(true);
   const [tags, setTags] = useState(photo.tags.map((tag) => tag.name));
   const [tagQuery, setTagQuery] = useState('');
   const [caption, setCaption] = useState(photo.caption);
@@ -604,8 +605,10 @@ function PhotoDialog({
     category !== (photo.category ?? '');
   const [discard, setDiscard] = useState(false);
   function close() {
-    if (dirty) setDiscard(true);
-    else onClose();
+    if (dirty) {
+      setShowDetails(true);
+      setDiscard(true);
+    } else onClose();
   }
   return (
     <Dialog
@@ -615,7 +618,7 @@ function PhotoDialog({
       }}
     >
       <DialogContent
-        className="max-w-5xl"
+        className="flex h-[calc(100dvh-2rem)] max-h-none w-[calc(100vw-2rem)] max-w-none flex-col overflow-hidden p-0"
         onEscapeKeyDown={(event) => {
           // Let an open tag dropdown consume Escape before the dialog closes.
           if (
@@ -625,18 +628,40 @@ function PhotoDialog({
             event.preventDefault();
         }}
       >
-        <DialogTitle className="pr-8 font-semibold">{photo.filename}</DialogTitle>
-        <DialogDescription className="mt-2 break-all text-muted-foreground">
-          {photo.path}
-        </DialogDescription>
-        <div className="mt-4 grid gap-4 md:grid-cols-[1.2fr_1fr]">
+        <div className="flex shrink-0 items-center gap-4 border-b p-4 pr-14">
+          <div className="min-w-0 flex-1">
+            <DialogTitle className="truncate font-semibold">{photo.filename}</DialogTitle>
+            <DialogDescription className="mt-1 truncate text-muted-foreground" title={photo.path}>
+              {photo.path}
+            </DialogDescription>
+          </div>
+          <Button
+            variant="outline"
+            aria-expanded={showDetails}
+            aria-controls="image-details"
+            onClick={() => setShowDetails(!showDetails)}
+          >
+            {showDetails ? 'Hide details' : 'Show details'}
+          </Button>
+        </div>
+        <div
+          className={cn(
+            'grid min-h-0 flex-1',
+            showDetails
+              ? 'grid-rows-[minmax(0,1fr)_minmax(0,0.65fr)] md:grid-cols-[minmax(0,1fr)_20rem] md:grid-rows-1'
+              : 'grid-cols-1 grid-rows-1',
+          )}
+        >
           <PhotoContextMenu photoId={photo.id} onError={setContextError}>
-            <div className="grid min-h-64 place-items-center rounded-md bg-muted">
+            <div
+              aria-label="Image preview"
+              className="grid min-h-0 min-w-0 place-items-center overflow-hidden bg-muted"
+            >
               {preview.data ? (
                 <img
                   src={preview.data}
                   alt={photo.caption || photo.filename}
-                  className="max-h-[65vh] w-full object-contain"
+                  className="block size-full object-contain"
                 />
               ) : (
                 <p>
@@ -648,64 +673,72 @@ function PhotoDialog({
             </div>
           </PhotoContextMenu>
           <form
-            className="space-y-4"
+            id="image-details"
+            className={cn(
+              'flex min-h-0 min-w-0 flex-col border-t md:border-l md:border-t-0',
+              !showDetails && 'hidden',
+            )}
             onSubmit={(e) => {
               e.preventDefault();
               save.mutate();
             }}
           >
-            <TagEditor
-              tags={tags}
-              originalTags={photo.tags}
-              onChange={setTags}
-              query={tagQuery}
-              onQueryChange={setTagQuery}
-            />
-            <label className="block space-y-2">
-              <span>Caption</span>
-              <Textarea value={caption} onChange={(e) => setCaption(e.target.value)} />
-            </label>
-            <label className="block space-y-2">
-              <span>Category</span>
-              <Input
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                placeholder="Optional category…"
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
+              <TagEditor
+                tags={tags}
+                originalTags={photo.tags}
+                onChange={setTags}
+                query={tagQuery}
+                onQueryChange={setTagQuery}
               />
-            </label>
-            {contextError && (
-              <p role="alert" className="text-destructive">
-                {contextError}
-              </p>
-            )}
-            {photo.error && (
-              <p role="alert" className="break-words text-destructive">
-                {photo.error}
-              </p>
-            )}
-            {save.error && (
-              <p role="alert" className="text-destructive">
-                {message(save.error)}
-              </p>
-            )}
-            {discard && (
-              <div className="space-y-3 rounded-md border p-3">
-                <p>Discard your unsaved changes?</p>
-                <Button type="button" variant="destructive" onClick={onClose}>
-                  Discard changes
+              <label className="block space-y-2">
+                <span>Caption</span>
+                <Textarea value={caption} onChange={(e) => setCaption(e.target.value)} />
+              </label>
+              <label className="block space-y-2">
+                <span>Category</span>
+                <Input
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  placeholder="Optional category…"
+                />
+              </label>
+            </div>
+            <div className="shrink-0 space-y-3 border-t p-4">
+              {contextError && (
+                <p role="alert" className="text-destructive">
+                  {contextError}
+                </p>
+              )}
+              {photo.error && (
+                <p role="alert" className="break-words text-destructive">
+                  {photo.error}
+                </p>
+              )}
+              {save.error && (
+                <p role="alert" className="text-destructive">
+                  {message(save.error)}
+                </p>
+              )}
+              {discard && (
+                <div className="space-y-3 rounded-md border p-3">
+                  <p>Discard your unsaved changes?</p>
+                  <Button type="button" variant="destructive" onClick={onClose}>
+                    Discard changes
+                  </Button>
+                  <Button type="button" variant="ghost" onClick={() => setDiscard(false)}>
+                    Keep editing
+                  </Button>
+                </div>
+              )}
+              <div className="flex justify-end gap-3">
+                <Button type="button" variant="outline" onClick={close}>
+                  Cancel
                 </Button>
-                <Button type="button" variant="ghost" onClick={() => setDiscard(false)}>
-                  Keep editing
+                <Button type="submit" disabled={save.isPending}>
+                  {save.isPending ? 'Saving…' : 'Save changes'}
                 </Button>
               </div>
-            )}
-            <div className="flex justify-end gap-3">
-              <Button type="button" variant="outline" onClick={close}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={save.isPending}>
-                {save.isPending ? 'Saving…' : 'Save changes'}
-              </Button>
             </div>
           </form>
         </div>

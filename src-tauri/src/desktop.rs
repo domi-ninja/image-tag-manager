@@ -112,7 +112,7 @@ async fn preview(s: State<'_, AppState>, id: i64) -> Response<String> {
     tauri::async_runtime::spawn_blocking(move || {
         let p = db.photo(id).map_err(err)?;
         Ok(inference::data_url(
-            &inference::jpeg(std::path::Path::new(&p.path), 1600).map_err(err)?,
+            &inference::jpeg(std::path::Path::new(&p.path), 3200).map_err(err)?,
         ))
     })
     .await

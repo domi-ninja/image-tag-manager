@@ -96,6 +96,7 @@ export const api = {
   retry: (folderId: number | null) => invoke<void>('retry', { folderId }),
   savePhoto: (id: number, classification: Classification) =>
     invoke<void>('save_photo', { id, classification }),
+  trashPhoto: (id: number) => invoke<void>('trash_photo', { id }),
   thumbnail: (id: number) => invoke<string>('thumbnail', { id }),
   preview: (id: number) => invoke<string>('preview', { id }),
 };

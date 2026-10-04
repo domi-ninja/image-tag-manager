@@ -128,6 +128,14 @@ enum ImageAction {
 }
 
 #[tauri::command]
+async fn trash_photo(s: State<'_, AppState>, id: i64) -> Response<()> {
+    let db = s.db.clone();
+    tauri::async_runtime::spawn_blocking(move || db.trash_photo(id).map_err(err))
+        .await
+        .map_err(err)?
+}
+
+#[tauri::command]
 async fn image_action(
     app: tauri::AppHandle,
     s: State<'_, AppState>,
@@ -212,6 +220,7 @@ pub fn run() {
             save_photo,
             thumbnail,
             preview,
+            trash_photo,
             image_action
         ])
         .build(tauri::generate_context!())

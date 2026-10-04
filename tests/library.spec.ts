@@ -72,6 +72,12 @@ test.beforeEach(async ({ page }) => {
         return { id, name, sources: ['user'] };
       }
       const invoke = async (command: string, args: Record<string, unknown> = {}) => {
+        if (command === 'trash_photo') {
+          if (sessionStorage.getItem('trash-error')) throw new Error('System trash unavailable');
+          images = images.filter((photo) => photo.id !== args.id);
+          document.body.dataset.trashedImage = String(args.id);
+          return;
+        }
         if (command === 'status')
           return {
             busy: false,
@@ -684,4 +690,41 @@ test('detail arrows follow search order, cross pages, and protect edits', async 
   await page.keyboard.press('ArrowRight');
   await page.keyboard.press('ArrowLeft');
   await expect(dialog.getByRole('heading')).toHaveText('image-9999.jpg');
+});
+
+test('detail trash button and Delete remove immediately, protect typing, and keep failures visible', async ({
+  page,
+}) => {
+  await page
+    .getByRole('button', { name: 'Open 01.jpg', exact: true })
+    .click({ position: { x: 8, y: 8 } });
+  const dialog = page.getByRole('dialog');
+  const caption = dialog.getByRole('textbox', { name: 'Caption', exact: true });
+  await caption.fill('Unsaved edit');
+  await caption.press('Delete');
+  await expect(dialog.getByRole('heading')).toHaveText('01.jpg');
+  await dialog.getByRole('button', { name: 'Move image to trash', exact: true }).click();
+  await expect(dialog.getByRole('heading')).toHaveText('02.jpg');
+  await expect(page.locator('body')).toHaveAttribute('data-trashed-image', '1');
+  await expect(page.getByText('Discard your unsaved changes?')).toHaveCount(0);
+  await dialog.dispatchEvent('keydown', { key: 'Delete', repeat: true });
+  await expect(dialog.getByRole('heading')).toHaveText('02.jpg');
+  await page.keyboard.press('Delete');
+  await expect(dialog.getByRole('heading')).toHaveText('03.jpg');
+  await page.evaluate(() => sessionStorage.setItem('trash-error', 'true'));
+  await expect(
+    dialog.getByRole('button', { name: 'Move image to trash', exact: true }),
+  ).toBeEnabled();
+  await page.keyboard.press('Delete');
+  await expect(dialog.getByRole('alert')).toHaveText('System trash unavailable');
+  await expect(dialog.getByRole('heading')).toHaveText('03.jpg');
+  await page.evaluate(() => sessionStorage.removeItem('trash-error'));
+  await page.keyboard.press('Escape');
+  await page.getByRole('combobox', { name: 'Search images' }).fill('03.jpg');
+  await page
+    .getByRole('button', { name: 'Open 03.jpg', exact: true })
+    .click({ position: { x: 8, y: 8 } });
+  await page.keyboard.press('Delete');
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByText('No images match these filters')).toBeVisible();
 });

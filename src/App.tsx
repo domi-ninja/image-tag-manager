@@ -14,6 +14,7 @@ import {
   LoaderCircle,
   Minus,
   Plus,
+  Trash2,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
@@ -596,6 +597,37 @@ function PhotoViewer({
       navigating.current = false;
     },
   });
+  const deletion = useMutation({
+    mutationFn: () => api.trashPhoto(current.photo.id),
+    onSuccess: async () => {
+      try {
+        await onSave();
+        let page = await api.search({ ...filter, page: Math.floor(current.index / 48) });
+        if (!page.total) {
+          onClose();
+          return;
+        }
+        const index = Math.min(current.index, page.total - 1);
+        if (Math.floor(index / 48) !== Math.floor(current.index / 48)) {
+          page = await api.search({ ...filter, page: Math.floor(index / 48) });
+        }
+        const photo = page.images[index % 48];
+        if (photo) setCurrent({ photo, index });
+        else onClose();
+      } catch {
+        // The file was trashed successfully; close if the refreshed results cannot be loaded.
+        onClose();
+      }
+    },
+    onSettled: () => {
+      navigating.current = false;
+    },
+  });
+  function moveToTrash() {
+    if (navigating.current) return;
+    navigating.current = true;
+    deletion.mutate();
+  }
   function navigate(direction: number) {
     if (navigating.current || current.index + direction < 0 || current.index + direction >= total)
       return;
@@ -611,8 +643,11 @@ function PhotoViewer({
       onNavigate={navigate}
       previous={current.index > 0}
       next={current.index + 1 < total}
-      navigating={navigation.isPending}
-      navigationError={navigation.error ? message(navigation.error) : ''}
+      navigating={navigation.isPending || deletion.isPending}
+      onTrash={moveToTrash}
+      navigationError={
+        deletion.error ? message(deletion.error) : navigation.error ? message(navigation.error) : ''
+      }
       showDetails={showDetails}
       setShowDetails={setShowDetails}
     />
@@ -623,6 +658,7 @@ function PhotoDialog({
   onClose,
   onSave,
   onNavigate,
+  onTrash,
   previous,
   next,
   navigating,
@@ -634,6 +670,7 @@ function PhotoDialog({
   onClose: () => void;
   onSave: () => Promise<void>;
   onNavigate: (direction: number) => void;
+  onTrash: () => void;
   previous: boolean;
   next: boolean;
   navigating: boolean;
@@ -642,6 +679,7 @@ function PhotoDialog({
   setShowDetails: (show: boolean) => void;
 }) {
   const [contextError, setContextError] = useState('');
+  const detailRef = useRef<HTMLDivElement>(null);
   const [tags, setTags] = useState(photo.tags.map((tag) => tag.name));
   const [tagQuery, setTagQuery] = useState('');
   const [caption, setCaption] = useState(photo.caption);
@@ -690,6 +728,11 @@ function PhotoDialog({
       }}
     >
       <DialogContent
+        ref={detailRef}
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          detailRef.current?.focus();
+        }}
         className="flex h-[calc(100dvh-2rem)] max-h-none w-[calc(100vw-2rem)] max-w-none flex-col overflow-hidden p-0"
         onKeyDown={(event) => {
           if (
@@ -708,6 +751,10 @@ function PhotoDialog({
             )
           )
             return;
+          if (event.key === 'Delete' && !event.repeat) {
+            event.preventDefault();
+            if (!save.isPending && !navigating) onTrash();
+          }
           if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
             event.preventDefault();
             if (event.key === 'ArrowLeft' ? previous : next)
@@ -730,6 +777,16 @@ function PhotoDialog({
               {photo.path}
             </DialogDescription>
           </div>
+          <Button
+            variant="outline"
+            aria-label="Move image to trash"
+            title="Move image to trash (Delete)"
+            disabled={navigating || save.isPending}
+            onClick={onTrash}
+          >
+            <Trash2 aria-hidden />
+            Trash
+          </Button>
           <Button
             variant="outline"
             aria-label="Previous image"

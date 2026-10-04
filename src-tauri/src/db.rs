@@ -180,6 +180,20 @@ impl Db {
             .execute("DELETE FROM folders WHERE id=?1", [id])?;
         Ok(())
     }
+    /// Remove the index entry only after the operating system accepts the file into Trash.
+    pub fn trash_photo(&self, id: i64) -> Result<()> {
+        let mut c = self.connect()?;
+        let tx = c.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+        let path: String =
+            tx.query_row("SELECT path FROM images WHERE id=?1", [id], |r| r.get(0))?;
+        if !Path::new(&path).is_file() {
+            bail!("Image could not be found. It may have moved.");
+        }
+        trash::delete(&path).context("Could not move image to system trash")?;
+        tx.execute("DELETE FROM images WHERE path=?1", [&path])?;
+        tx.commit()?;
+        Ok(())
+    }
     pub fn setting(&self, key: &str, default: &str) -> Result<String> {
         Ok(self
             .connect()?
@@ -346,21 +360,26 @@ impl Db {
             {
                 continue;
             }
-            let meta = entry.metadata()?;
+            // Serialize each indexed file with trash operations, then recheck its existence.
+            let tx = c.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+            let meta = match std::fs::metadata(path) {
+                Ok(meta) => meta,
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+                Err(error) => return Err(error.into()),
+            };
             let modified = meta
                 .modified()?
                 .duration_since(UNIX_EPOCH)?
                 .as_nanos()
                 .min(i64::MAX as u128) as i64;
             let path_string = path.to_string_lossy().to_string();
-            let previous: Option<(i64, i64, i64)> = c
+            let previous: Option<(i64, i64, i64)> = tx
                 .query_row(
                     "SELECT id,modified,size FROM images WHERE path=?1",
                     [&path_string],
                     |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
                 )
                 .optional()?;
-            let tx = c.transaction()?;
             match previous {
                 Some((id, m, size)) if m == modified && size == meta.len() as i64 => {
                     tx.execute(
@@ -417,6 +436,35 @@ mod tests {
             caption: "A sunny woodland".into(),
             category: Some("nature".into()),
         }
+    }
+    #[test]
+    fn trash_missing_photo_keeps_index() {
+        let (_dir, db, _folder) = fixture();
+        let photo = db.next().unwrap().unwrap();
+        std::fs::remove_file(&photo.path).unwrap();
+        assert!(db.trash_photo(photo.id).is_err());
+        assert!(db.photo(photo.id).is_ok());
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    #[ignore = "Run with IMAGE_SHELF_TEST_TRASH=1 and an isolated XDG_DATA_HOME"]
+    fn trash_photo_moves_file_and_removes_index() {
+        assert_eq!(std::env::var("IMAGE_SHELF_TEST_TRASH").unwrap(), "1");
+        let trash_root = PathBuf::from(std::env::var("XDG_DATA_HOME").unwrap()).join("Trash");
+        let (_dir, db, _folder) = fixture();
+        let photo = db.next().unwrap().unwrap();
+        db.store(photo.id, result(), None).unwrap();
+        db.trash_photo(photo.id).unwrap();
+        assert!(!Path::new(&photo.path).exists());
+        assert!(db.photo(photo.id).is_err());
+        assert_eq!(db.stats().unwrap().total, 0);
+        assert!(db.tags(None).unwrap().is_empty());
+        assert_eq!(
+            std::fs::read(trash_root.join("files/one.jpg")).unwrap(),
+            b"image"
+        );
+        assert!(trash_root.join("info/one.jpg.trashinfo").is_file());
     }
     #[test]
     fn tags_and_fulltext_follow_edits_and_folder_removal() {

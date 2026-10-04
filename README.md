@@ -62,6 +62,11 @@ not depend on this checkout remaining in place.
    Use **Left/Right arrows** or the previous/next buttons to browse the current
    search results. Arrow keys in text inputs keep editing the text. Leaving an
    image with unsaved changes asks before discarding them.
+   **Trash** or **Delete** moves the original file immediately to the system trash
+   (Recycle Bin on Windows), without confirmation, then shows the next result or
+   the previous result at the end. Unsaved edits are discarded when trashing.
+   Delete in a text input edits text; holding Delete does not trash successive images.
+   Restore files through your system trash, then rescan to index them again.
    Pale blue tags come from manual edits or folder names; hover for the exact source.
    AI tags stay neutral. Edits update search immediately.
 6. Use the settings button beside **Tags** to manage the shared tag catalog. Search,
@@ -199,7 +204,8 @@ the resulting index. It does not call Python or a hosted model API.
 ### Verified in this workspace
 
 - Linux Debian installer built successfully, approximately 38 MB including the CPU runtime.
-- Nineteen Rust database/worker tests, thirteen browser interaction tests, and a search parser test passed; TypeScript build
+- Twenty Rust database/worker tests, an isolated Linux trash integration test,
+  fourteen browser interaction tests, and a search parser test passed; TypeScript build
   and Rust clippy passed.
 - The extracted Debian app ran in native WebKit through WebDriver. Real Qwen inference
   with configured categories reached SQLite, tag search returned the indexed results,

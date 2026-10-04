@@ -28,11 +28,14 @@ macOS has not been tested.
 
 ## Use
 
-1. Add folders using the plus button. Subfolders are included automatically.
+1. Add folders using the plus button. Subfolders are included automatically. Enabled
+   folders are rescanned at startup and every hour while the app is open, even with
+   automatic classification turned off. A scheduled scan waits for any current task
+   to finish; you can also use **Scan folders** at any time.
 2. Download the model once with **Download model**. It downloads 2.65 GB from Qwen's
    official repository, checks SHA-256, and resumes interrupted downloads.
 3. Choose **Classify pending**, or enable **Classify automatically**. Automatic mode
-   checks enabled folders every 30 seconds while the app is open.
+   checks the indexed pending queue every 30 seconds while the app is open.
 4. Search tags, captions, filenames, and categories. Words use prefix matching and
    combine with AND. Click a tag to insert it into the search field as `#tag`.
    Type `#` followed by a name for autocomplete. Names with spaces use
@@ -167,7 +170,7 @@ the resulting index. It does not call Python or a hosted model API.
 ### Verified in this workspace
 
 - Linux Debian installer built successfully, approximately 38 MB including the CPU runtime.
-- Seventeen Rust database tests, eight browser interaction tests, and a search parser test passed; TypeScript build
+- Nineteen Rust database/worker tests, eight browser interaction tests, and a search parser test passed; TypeScript build
   and Rust clippy passed.
 - The extracted Debian app ran in native WebKit through WebDriver. Real Qwen inference
   with configured categories reached SQLite, tag search returned the indexed results,

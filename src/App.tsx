@@ -221,7 +221,8 @@ export default function App() {
               Classify automatically
             </label>
             <p className="text-muted-foreground">
-              Checks enabled folders every 30 seconds while the app is open.
+              Enabled folders are scanned at startup and hourly. Automatic classification checks the
+              queue every 30 seconds.
             </p>
           </div>
         </aside>

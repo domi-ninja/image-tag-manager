@@ -18,7 +18,7 @@ export function VirtualPhotoGrid({
   total: number;
   size: number;
   scrollRef: RefObject<HTMLDivElement | null>;
-  renderPhoto: (photo: Photo) => ReactNode;
+  renderPhoto: (photo: Photo, index: number) => ReactNode;
 }) {
   const [width, setWidth] = useState(() => scrollRef.current?.clientWidth ?? size);
   useEffect(
@@ -83,7 +83,7 @@ export function VirtualPhotoGrid({
             const page = pages[Math.floor(index / PAGE_SIZE) - firstPage];
             const photo = page?.data?.images[index % PAGE_SIZE];
             return photo ? (
-              renderPhoto(photo)
+              renderPhoto(photo, index)
             ) : (
               <div
                 key={`pending-${index}`}

@@ -642,3 +642,46 @@ test('endless scrolling unloads old tiles and thumbnails and restores them on re
   await expect(grid.locator('article')).toHaveCount(1);
   expect(await library.evaluate((element) => element.scrollTop)).toBe(0);
 });
+
+test('detail arrows follow search order, cross pages, and protect edits', async ({ page }) => {
+  await page.evaluate(() => sessionStorage.setItem('large-library', 'true'));
+  await page.reload();
+  const library = page.getByLabel('Image library', { exact: true });
+  await library.evaluate((element) => {
+    element.scrollTop = 3600;
+  });
+  await page
+    .getByRole('button', { name: 'Open image-48.jpg', exact: true })
+    .click({ position: { x: 8, y: 8 } });
+  const dialog = page.getByRole('dialog');
+  await page.keyboard.press('ArrowRight');
+  await expect(dialog.getByRole('heading')).toHaveText('image-49.jpg');
+  await page.keyboard.press('ArrowLeft');
+  await expect(dialog.getByRole('heading')).toHaveText('image-48.jpg');
+  await dialog.getByRole('button', { name: 'Hide details', exact: true }).click();
+  await page.keyboard.press('ArrowRight');
+  await expect(dialog.getByRole('heading')).toHaveText('image-49.jpg');
+  await expect(dialog.getByRole('button', { name: 'Show details', exact: true })).toBeVisible();
+  await dialog.getByRole('button', { name: 'Show details', exact: true }).click();
+  const caption = dialog.getByRole('textbox', { name: 'Caption', exact: true });
+  await caption.fill('Keep this edit');
+  await caption.press('ArrowRight');
+  await expect(dialog.getByRole('heading')).toHaveText('image-49.jpg');
+  await dialog.getByRole('button', { name: 'Next image', exact: true }).click();
+  await expect(dialog.getByText('Discard your unsaved changes?')).toBeVisible();
+  await dialog.getByRole('button', { name: 'Keep editing', exact: true }).click();
+  await expect(caption).toHaveValue('Keep this edit');
+  await page.keyboard.press('ArrowRight');
+  await dialog.getByRole('button', { name: 'Discard changes', exact: true }).click();
+  await expect(dialog.getByRole('heading')).toHaveText('image-50.jpg');
+  await page.keyboard.press('Escape');
+  await page.getByRole('combobox', { name: 'Search images' }).fill('image-9999.jpg');
+  await page
+    .getByRole('button', { name: 'Open image-9999.jpg', exact: true })
+    .click({ position: { x: 8, y: 8 } });
+  await expect(dialog.getByRole('button', { name: 'Previous image', exact: true })).toBeDisabled();
+  await expect(dialog.getByRole('button', { name: 'Next image', exact: true })).toBeDisabled();
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('ArrowLeft');
+  await expect(dialog.getByRole('heading')).toHaveText('image-9999.jpg');
+});

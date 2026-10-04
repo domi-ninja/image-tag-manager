@@ -14,6 +14,8 @@ import {
   LoaderCircle,
   Minus,
   Plus,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { api, type Filter, type Folder, type Photo } from './lib/api';
 import { VirtualPhotoGrid } from './components/virtual-photo-grid';
@@ -38,7 +40,7 @@ export default function App() {
   const query = useDeferredValue(filter.query);
   const searchInput = useRef<HTMLInputElement>(null);
   const selectedTags = parseSearch(filter.query).tags;
-  const [selected, setSelected] = useState<Photo | null>(null);
+  const [selected, setSelected] = useState<{ photo: Photo; index: number } | null>(null);
   const [folderEdit, setFolderEdit] = useState<Folder | null>(null);
   const [error, setError] = useState('');
   const [tagManager, setTagManager] = useState(false);
@@ -370,12 +372,12 @@ export default function App() {
                 total={total}
                 size={thumbnails.size}
                 scrollRef={thumbnails.galleryRef}
-                renderPhoto={(photo) => (
+                renderPhoto={(photo, index) => (
                   <PhotoCard
                     onError={setError}
                     key={`${photo.id}-${photo.modified}`}
                     photo={photo}
-                    onSelect={() => setSelected(photo)}
+                    onSelect={() => setSelected({ photo, index })}
                     onTag={searchTag}
                   />
                 )}
@@ -445,7 +447,13 @@ export default function App() {
         />
       )}
       {selected && (
-        <PhotoDialog photo={selected} onClose={() => setSelected(null)} onSave={invalidate} />
+        <PhotoViewer
+          initial={selected}
+          filter={{ ...filter, query }}
+          total={total}
+          onClose={() => setSelected(null)}
+          onSave={invalidate}
+        />
       )}
       {folderEdit && (
         <FolderDialog
@@ -556,17 +564,84 @@ function PhotoCard({
     </PhotoContextMenu>
   );
 }
+function PhotoViewer({
+  initial,
+  filter,
+  total,
+  onClose,
+  onSave,
+}: {
+  initial: { photo: Photo; index: number };
+  filter: Filter;
+  total: number;
+  onClose: () => void;
+  onSave: () => Promise<void>;
+}) {
+  const [current, setCurrent] = useState(initial);
+  const [showDetails, setShowDetails] = useState(true);
+  const navigating = useRef(false);
+  const navigation = useMutation({
+    mutationFn: async (direction: number) => {
+      const index = current.index + direction;
+      const page = await api.search({ ...filter, page: Math.floor(index / 48) });
+      const photo = page.images[index % 48];
+      if (!photo)
+        throw new Error(
+          'This image is no longer in the search results. Close the viewer to refresh.',
+        );
+      return { photo, index };
+    },
+    onSuccess: setCurrent,
+    onSettled: () => {
+      navigating.current = false;
+    },
+  });
+  function navigate(direction: number) {
+    if (navigating.current || current.index + direction < 0 || current.index + direction >= total)
+      return;
+    navigating.current = true;
+    navigation.mutate(direction);
+  }
+  return (
+    <PhotoDialog
+      key={current.photo.id}
+      photo={current.photo}
+      onClose={onClose}
+      onSave={onSave}
+      onNavigate={navigate}
+      previous={current.index > 0}
+      next={current.index + 1 < total}
+      navigating={navigation.isPending}
+      navigationError={navigation.error ? message(navigation.error) : ''}
+      showDetails={showDetails}
+      setShowDetails={setShowDetails}
+    />
+  );
+}
 function PhotoDialog({
   photo,
   onClose,
   onSave,
+  onNavigate,
+  previous,
+  next,
+  navigating,
+  navigationError,
+  showDetails,
+  setShowDetails,
 }: {
   photo: Photo;
   onClose: () => void;
   onSave: () => Promise<void>;
+  onNavigate: (direction: number) => void;
+  previous: boolean;
+  next: boolean;
+  navigating: boolean;
+  navigationError: string;
+  showDetails: boolean;
+  setShowDetails: (show: boolean) => void;
 }) {
   const [contextError, setContextError] = useState('');
-  const [showDetails, setShowDetails] = useState(true);
   const [tags, setTags] = useState(photo.tags.map((tag) => tag.name));
   const [tagQuery, setTagQuery] = useState('');
   const [caption, setCaption] = useState(photo.caption);
@@ -595,12 +670,17 @@ function PhotoDialog({
     tags.some((tag) => !photo.tags.some((original) => original.name === tag)) ||
     caption !== photo.caption ||
     category !== (photo.category ?? '');
-  const [discard, setDiscard] = useState(false);
-  function close() {
+  const [discard, setDiscard] = useState<'close' | -1 | 1 | null>(null);
+  function leave(destination: 'close' | -1 | 1) {
+    if (save.isPending || navigating) return;
     if (dirty) {
       setShowDetails(true);
-      setDiscard(true);
-    } else onClose();
+      setDiscard(destination);
+    } else if (destination === 'close') onClose();
+    else onNavigate(destination);
+  }
+  function close() {
+    leave('close');
   }
   return (
     <Dialog
@@ -611,6 +691,29 @@ function PhotoDialog({
     >
       <DialogContent
         className="flex h-[calc(100dvh-2rem)] max-h-none w-[calc(100vw-2rem)] max-w-none flex-col overflow-hidden p-0"
+        onKeyDown={(event) => {
+          if (
+            event.defaultPrevented ||
+            event.altKey ||
+            event.ctrlKey ||
+            event.metaKey ||
+            event.shiftKey ||
+            discard
+          )
+            return;
+          if (
+            event.target instanceof HTMLElement &&
+            event.target.closest(
+              'input, textarea, select, [contenteditable="true"], [role="menu"], [role="combobox"]',
+            )
+          )
+            return;
+          if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+            event.preventDefault();
+            if (event.key === 'ArrowLeft' ? previous : next)
+              leave(event.key === 'ArrowLeft' ? -1 : 1);
+          }
+        }}
         onEscapeKeyDown={(event) => {
           // Let an open tag dropdown consume Escape before the dialog closes.
           if (
@@ -629,6 +732,24 @@ function PhotoDialog({
           </div>
           <Button
             variant="outline"
+            aria-label="Previous image"
+            title="Previous image (Left arrow)"
+            disabled={!previous || navigating || save.isPending}
+            onClick={() => leave(-1)}
+          >
+            <ChevronLeft aria-hidden />
+          </Button>
+          <Button
+            variant="outline"
+            aria-label="Next image"
+            title="Next image (Right arrow)"
+            disabled={!next || navigating || save.isPending}
+            onClick={() => leave(1)}
+          >
+            <ChevronRight aria-hidden />
+          </Button>
+          <Button
+            variant="outline"
             aria-expanded={showDetails}
             aria-controls="image-details"
             onClick={() => setShowDetails(!showDetails)}
@@ -636,6 +757,11 @@ function PhotoDialog({
             {showDetails ? 'Hide details' : 'Show details'}
           </Button>
         </div>
+        {navigationError && (
+          <p role="alert" className="px-4 text-destructive">
+            {navigationError}
+          </p>
+        )}
         <div
           className={cn(
             'grid min-h-0 flex-1',
@@ -715,10 +841,20 @@ function PhotoDialog({
               {discard && (
                 <div className="space-y-3 rounded-md border p-3">
                   <p>Discard your unsaved changes?</p>
-                  <Button type="button" variant="destructive" onClick={onClose}>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    onClick={() => {
+                      if (discard === 'close') onClose();
+                      else if (discard) {
+                        setDiscard(null);
+                        onNavigate(discard);
+                      }
+                    }}
+                  >
                     Discard changes
                   </Button>
-                  <Button type="button" variant="ghost" onClick={() => setDiscard(false)}>
+                  <Button type="button" variant="ghost" onClick={() => setDiscard(null)}>
                     Keep editing
                   </Button>
                 </div>

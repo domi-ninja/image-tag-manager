@@ -10,7 +10,6 @@ import {
   Play,
   Pause,
   Download,
-  ImageOff,
   ChevronLeft,
   ChevronRight,
   X,
@@ -324,7 +323,7 @@ export default function App() {
               </Button>
             </div>
           )}
-          <div ref={thumbnails.galleryRef} className="min-h-0 flex-1 overflow-y-auto p-4 pt-0">
+          <div ref={thumbnails.galleryRef} className="min-h-0 flex-1 overflow-y-auto">
             {photos.isPending ? (
               <p role="status" className="py-4 text-muted-foreground">
                 Loading images…
@@ -361,7 +360,7 @@ export default function App() {
             ) : (
               <div
                 aria-label="Image grid"
-                className="grid gap-4"
+                className="grid gap-0"
                 style={{
                   gridTemplateColumns: `repeat(auto-fill, minmax(0, min(${thumbnails.size}px, 100%)))`,
                 }}
@@ -498,67 +497,57 @@ function PhotoCard({
   });
   return (
     <PhotoContextMenu photoId={photo.id} onError={onError}>
-      <article className="min-w-0 overflow-hidden rounded-md border bg-white">
+      <article className="group relative min-w-0 bg-muted">
         <button
           onClick={onSelect}
-          className="block w-full text-left"
+          className="block aspect-[4/3] w-full overflow-hidden text-left focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
           aria-label={`Open ${photo.filename}`}
         >
-          <div className="grid aspect-[4/3] place-items-center bg-muted">
-            {thumb.data ? (
-              <img
-                src={thumb.data}
-                alt={photo.caption || photo.filename}
-                className="size-full object-cover"
-                loading="lazy"
-                width={360}
-                height={270}
-              />
-            ) : thumb.isError ? (
-              <ImageOff className="size-6 text-muted-foreground" />
-            ) : (
-              <span className="text-muted-foreground">Loading preview…</span>
-            )}
-          </div>
-          <div className="space-y-2 p-3">
-            <p className="truncate font-medium" title={photo.filename}>
-              {photo.filename}
-            </p>
-            {photo.caption ? (
-              <p className="line-clamp-2 min-h-10 text-muted-foreground">{photo.caption}</p>
-            ) : (
-              <p
-                className={cn(
-                  'min-h-10',
-                  photo.status === 'error' ? 'text-destructive' : 'text-muted-foreground',
-                )}
-              >
-                {photo.status === 'error'
-                  ? 'Classification failed. Open to review.'
-                  : 'Waiting for classification'}
-              </p>
-            )}
-            {photo.category && <p className="truncate">Category: {photo.category}</p>}
-          </div>
+          {thumb.data && (
+            <img
+              src={thumb.data}
+              alt={photo.caption || photo.filename}
+              className="size-full object-cover"
+              loading="lazy"
+              width={360}
+              height={270}
+            />
+          )}
         </button>
-        <div className="flex min-h-10 flex-wrap gap-2 px-3 pb-3">
-          {photo.tags.slice(0, 4).map((tag) => (
-            <button
-              key={tag.id}
-              onClick={() => onTag(tag.name)}
-              className="max-w-full truncate rounded border px-2 py-1 text-muted-foreground hover:bg-muted"
-              title={`Search tag ${tag.name}`}
-            >
-              {tag.name}
-            </button>
-          ))}
-          {photo.tags.length > 4 && (
-            <button
-              onClick={onSelect}
-              className="rounded px-2 py-1 text-muted-foreground hover:bg-muted"
-            >
-              +{photo.tags.length - 4}
-            </button>
+        <div
+          aria-label={`Details for ${photo.filename}`}
+          className="invisible absolute inset-x-0 bottom-0 z-10 max-h-[75%] space-y-3 overflow-y-auto bg-background/95 p-3 shadow-md group-hover:visible group-focus-within:visible"
+        >
+          <button onClick={onSelect} className="block w-full space-y-2 text-left">
+            <p className="break-all font-medium">{photo.filename}</p>
+            <p className="break-words text-muted-foreground">
+              {photo.caption ||
+                (photo.status === 'error'
+                  ? 'Classification failed. Open to review.'
+                  : 'Waiting for classification')}
+            </p>
+            {photo.category && <p className="break-words">Category: {photo.category}</p>}
+            {thumb.isError && (
+              <p className="text-destructive">Preview unavailable. Open to review.</p>
+            )}
+          </button>
+          {photo.tags.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {photo.tags.map((tag) => (
+                <button
+                  key={tag.id}
+                  onClick={() => onTag(tag.name)}
+                  className={cn(
+                    'max-w-full break-words rounded border px-2 py-1 text-left hover:bg-muted',
+                    tag.sources.some((source) => source === 'user' || source === 'folder') &&
+                      'border-sky-200 bg-sky-50',
+                  )}
+                  title={`Search tag ${tag.name}`}
+                >
+                  {tag.name}
+                </button>
+              ))}
+            </div>
           )}
         </div>
       </article>

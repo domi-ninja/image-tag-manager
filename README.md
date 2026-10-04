@@ -55,6 +55,10 @@ Resize thumbnails with **Ctrl+scroll** over the image grid or **Ctrl+plus/minus*
 The footer has matching buttons and shows the width. Sizes range from 160 to 640
 pixels and are remembered on this device. Ordinary scrolling and text size stay unchanged.
 
+The grid shows edge-to-edge images without labels or icons. Hover over an image
+or focus it with the keyboard to show its filename, caption, category, and clickable
+tags. These details are loaded with the grid and appear immediately.
+
 Each nested directory below a configured folder contributes its name as a tag.
 For example, with a root of `Photos`, `Photos/Trips/Alps/image.jpg` gets `trips`
 and `alps`. The configured root and its parents do not become tags. Folder and
@@ -172,7 +176,7 @@ the resulting index. It does not call Python or a hosted model API.
 ### Verified in this workspace
 
 - Linux Debian installer built successfully, approximately 38 MB including the CPU runtime.
-- Nineteen Rust database/worker tests, nine browser interaction tests, and a search parser test passed; TypeScript build
+- Nineteen Rust database/worker tests, ten browser interaction tests, and a search parser test passed; TypeScript build
   and Rust clippy passed.
 - The extracted Debian app ran in native WebKit through WebDriver. Real Qwen inference
   with configured categories reached SQLite, tag search returned the indexed results,

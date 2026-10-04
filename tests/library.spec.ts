@@ -179,7 +179,7 @@ test('search, edit tags, and search the edited index', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Open 01.jpg' })).toBeVisible();
   await page.getByRole('combobox', { name: 'Search images' }).fill('steering');
   await expect(page.getByRole('button', { name: /^Open .*jpg$/ })).toHaveCount(1);
-  await page.getByRole('button', { name: 'Open 01.jpg' }).click();
+  await page.getByRole('button', { name: 'Open 01.jpg' }).click({ position: { x: 8, y: 8 } });
   await page.getByRole('combobox', { name: 'Add tag' }).fill('road trip');
   await page.getByRole('option', { name: 'Add "road trip"' }).click();
   await page.getByRole('button', { name: 'Save changes' }).click();
@@ -204,7 +204,7 @@ test('folder configuration and deliberate removal', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Configure References' })).toBeVisible();
 });
 test('keyboard dialog, unsaved edits, empty search, and visual layout', async ({ page }) => {
-  await page.getByRole('button', { name: 'Open 01.jpg' }).click();
+  await page.getByRole('button', { name: 'Open 01.jpg' }).click({ position: { x: 8, y: 8 } });
   await page.getByRole('textbox', { name: 'Caption', exact: true }).fill('Unsaved edit');
   await page.keyboard.press('Escape');
   await expect(page.getByText('Discard your unsaved changes?')).toBeVisible();
@@ -234,7 +234,7 @@ test('image context menu invokes native actions from cards and the enlarged prev
     ['Open image', 'open'],
   ] as const;
   for (const [label, action] of actions) {
-    await card.click({ button: 'right' });
+    await card.click({ button: 'right', position: { x: 8, y: 8 } });
     await expect(page.getByRole('menuitem')).toHaveText(actions.map(([label]) => label));
     await page.getByRole('menuitem', { name: label, exact: true }).click();
     await expect(page.locator('body')).toHaveAttribute(
@@ -242,7 +242,7 @@ test('image context menu invokes native actions from cards and the enlarged prev
       JSON.stringify({ id: photo.id, action }),
     );
   }
-  await card.click();
+  await card.click({ position: { x: 8, y: 8 } });
   await page
     .getByRole('dialog')
     .getByRole('img', { name: photo.caption, exact: true })
@@ -262,7 +262,9 @@ test('tag editor suggests existing tags, creates tags with Enter, and removes ta
   const suggestion = fixtures
     .flatMap((photo) => photo.tags.map((tag) => tag.name))
     .find((tag) => !photo.tags.some((existing) => existing.name === tag))!;
-  await page.getByRole('button', { name: `Open ${photo.filename}` }).click();
+  await page
+    .getByRole('button', { name: `Open ${photo.filename}` })
+    .click({ position: { x: 8, y: 8 } });
   const input = page.getByRole('combobox', { name: 'Add tag' });
   await input.fill(suggestion);
   await page.getByRole('option', { name: suggestion, exact: true }).click();
@@ -291,7 +293,9 @@ test('tag editor suggests existing tags, creates tags with Enter, and removes ta
   await page.screenshot({ path: 'test-results/tag-editor.png' });
   await input.clear();
   await page.getByRole('button', { name: 'Save changes' }).click();
-  await page.getByRole('button', { name: `Open ${photo.filename}` }).click();
+  await page
+    .getByRole('button', { name: `Open ${photo.filename}` })
+    .click({ position: { x: 8, y: 8 } });
   await expect(
     page.getByRole('button', { name: 'Remove tag weekend memories', exact: true }),
   ).toBeVisible();
@@ -307,7 +311,9 @@ test('tag sources are tinted and the manager shows usage, renames and purges unu
   page,
 }) => {
   const photo = fixtures[0];
-  await page.getByRole('button', { name: `Open ${photo.filename}` }).click();
+  await page
+    .getByRole('button', { name: `Open ${photo.filename}` })
+    .click({ position: { x: 8, y: 8 } });
   const folderTag = page.getByRole('button', {
     name: `Remove tag ${photo.tags[0].name}`,
     exact: true,
@@ -354,6 +360,9 @@ test('tag clicks appear in search and hashtag autocomplete supports keyboard, sp
   page,
 }) => {
   const search = page.getByRole('combobox', { name: 'Search images' });
+  await page
+    .getByRole('button', { name: 'Open 01.jpg', exact: true })
+    .hover({ position: { x: 8, y: 8 } });
   await page
     .getByRole('button', { name: 'Open 01.jpg', exact: true })
     .locator('xpath=ancestor::article')
@@ -446,7 +455,9 @@ test('thumbnail size follows Ctrl shortcuts, stays bounded, and persists without
 test('image viewer fills the window and can give all space to the image without losing edits', async ({
   page,
 }) => {
-  await page.getByRole('button', { name: 'Open 01.jpg', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'Open 01.jpg', exact: true })
+    .click({ position: { x: 8, y: 8 } });
   const dialog = page.getByRole('dialog');
   const preview = page.getByLabel('Image preview', { exact: true });
   const bounds = await dialog.boundingBox();
@@ -474,4 +485,45 @@ test('image viewer fills the window and can give all space to the image without 
     true,
   );
   await page.screenshot({ path: 'test-results/large-image-viewer-small.png' });
+});
+
+test('grid is seamless and shows preloaded details only on hover or keyboard focus', async ({
+  page,
+}) => {
+  const grid = page.getByLabel('Image grid', { exact: true });
+  const cards = grid.locator('article');
+  const first = cards.first();
+  const details = first.getByLabel(`Details for ${fixtures[0].filename}`, { exact: true });
+  await expect(first.locator('img')).toBeVisible();
+  await page.getByRole('combobox', { name: 'Search images' }).focus();
+  await expect(details).toBeHidden();
+  expect(await details.textContent()).toContain(fixtures[0].tags.at(-1)!.name);
+  expect(await grid.locator('svg').count()).toBe(0);
+  const boxes = await cards.evaluateAll((elements) =>
+    elements.map((element) => {
+      const { x, y, width, height } = element.getBoundingClientRect();
+      return { x, y, width, height };
+    }),
+  );
+  expect(boxes[1].x).toBe(boxes[0].x + boxes[0].width);
+  const nextRow = boxes.find((box) => box.y > boxes[0].y)!;
+  expect(nextRow.y).toBe(boxes[0].y + boxes[0].height);
+  await page.screenshot({ path: 'test-results/seamless-grid.png' });
+  // With IPC disabled, hovering must still show every detail already in the grid result.
+  await page.evaluate(() => {
+    Object.assign(Reflect.get(window, '__TAURI_INTERNALS__'), {
+      invoke: () => Promise.reject(new Error('No hover requests allowed')),
+    });
+  });
+  await first.hover();
+  await expect(details).toBeVisible();
+  await expect(details).toContainText(fixtures[0].caption);
+  await expect(
+    details.getByRole('button', { name: fixtures[0].tags.at(-1)!.name, exact: true }),
+  ).toBeVisible();
+  await page.screenshot({ path: 'test-results/grid-hover.png' });
+  await page.mouse.move(0, 0);
+  await expect(details).toBeHidden();
+  await first.getByRole('button', { name: `Open ${fixtures[0].filename}`, exact: true }).focus();
+  await expect(details).toBeVisible();
 });

@@ -41,6 +41,15 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript(
     ({ fixtures, thumbnails, folder }) => {
       let images = fixtures;
+      if (sessionStorage.getItem('large-library')) {
+        images = Array.from({ length: 10000 }, (_, index) => ({
+          ...fixtures[index % fixtures.length],
+          id: index + 1,
+          filename: `image-${index + 1}.jpg`,
+        }));
+      }
+      const requestedPages: number[] = [];
+      let firstThumbnailRequests = 0;
       let folders = [folder];
       let automatic = false;
       const entities = new Map<number, string>(
@@ -84,12 +93,21 @@ test.beforeEach(async ({ page }) => {
           await new Promise<void>((resolve) =>
             window.addEventListener('release-thumbnails', () => resolve(), { once: true }),
           );
+        }
+        if (command === 'thumbnail' && sessionStorage.getItem('failed-thumbnails')) {
           if (args.id === 2) return 'data:image/jpeg;base64,broken';
           if (args.id === 3) throw new Error('Image file unavailable');
         }
-        if (command === 'thumbnail' || command === 'preview') return thumbnails[Number(args.id)];
+        if (command === 'thumbnail' || command === 'preview') {
+          if (command === 'thumbnail' && args.id === 1) {
+            document.body.dataset.firstThumbnailRequests = String(++firstThumbnailRequests);
+          }
+          return thumbnails[((Number(args.id) - 1) % fixtures.length) + 1];
+        }
         if (command === 'search') {
           const f = args.filter as Filter;
+          requestedPages.push(f.page);
+          document.body.dataset.requestedPages = JSON.stringify(requestedPages);
           const list = images.filter(
             (p) =>
               (!f.folderId || p.folderId === f.folderId) &&
@@ -538,7 +556,10 @@ test('grid is seamless and shows preloaded details only on hover or keyboard foc
 test('tiles show loading until ready and show failures instead of blank tiles', async ({
   page,
 }) => {
-  await page.evaluate(() => sessionStorage.setItem('hold-thumbnails', 'true'));
+  await page.evaluate(() => {
+    sessionStorage.setItem('hold-thumbnails', 'true');
+    sessionStorage.setItem('failed-thumbnails', 'true');
+  });
   await page.reload();
   await page.emulateMedia({ reducedMotion: 'reduce' });
   const grid = page.getByLabel('Image grid', { exact: true });
@@ -552,7 +573,10 @@ test('tiles show loading until ready and show failures instead of blank tiles', 
   await tile.hover({ position: { x: 8, y: 8 } });
   await expect(grid.getByLabel('Details for 01.jpg')).toContainText(fixtures[0].caption);
   await page.mouse.move(0, 0);
-  await page.evaluate(() => window.dispatchEvent(new Event('release-thumbnails')));
+  await page.evaluate(() => {
+    sessionStorage.removeItem('hold-thumbnails');
+    window.dispatchEvent(new Event('release-thumbnails'));
+  });
   await expect(tile).toHaveAttribute('aria-busy', 'false');
   await expect(tile.getByText('Loading preview…')).toHaveCount(0);
   await expect(tile.locator('img')).toBeVisible();
@@ -564,4 +588,57 @@ test('tiles show loading until ready and show failures instead of blank tiles', 
   }
   await expect(grid.getByText('Loading preview…', { exact: true })).toHaveCount(0);
   await page.screenshot({ path: 'test-results/tiles-ready-and-failed.png' });
+});
+
+test('endless scrolling unloads old tiles and thumbnails and restores them on return', async ({
+  page,
+}) => {
+  await page.evaluate(() => sessionStorage.setItem('large-library', 'true'));
+  await page.reload();
+  const library = page.getByLabel('Image library', { exact: true });
+  const grid = page.getByLabel('Image grid', { exact: true });
+  const first = grid.getByRole('button', { name: 'Open image-1.jpg', exact: true });
+  await expect(first).toHaveAttribute('aria-busy', 'false');
+  const initialRequests = Number(
+    await page.locator('body').getAttribute('data-first-thumbnail-requests'),
+  );
+  // Jump across many database pages without growing the mounted image set.
+  for (const top of [4000, 16000, 40000, 80000, 160000]) {
+    await library.evaluate((element, top) => {
+      element.scrollTop = top;
+    }, top);
+    await expect
+      .poll(async () =>
+        (
+          JSON.parse(
+            (await page.locator('body').getAttribute('data-requested-pages')) ?? '[]',
+          ) as number[]
+        ).at(-1),
+      )
+      .toBeGreaterThan(Math.floor(((top / 240) * 3) / 48) - 2);
+    await expect(first).toHaveCount(0);
+    await expect.poll(() => grid.locator('article').count()).toBeGreaterThan(0);
+    expect(await grid.locator('article').count()).toBeLessThanOrEqual(24);
+    await expect(grid.getByText('Loading images…', { exact: true })).toHaveCount(0);
+  }
+  await library.evaluate((element) => {
+    element.scrollTop = 0;
+  });
+  await expect(first).toHaveAttribute('aria-busy', 'false');
+  expect(
+    Number(await page.locator('body').getAttribute('data-first-thumbnail-requests')),
+  ).toBeGreaterThan(initialRequests);
+  await library.evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+  });
+  await expect(
+    grid.getByRole('button', { name: 'Open image-10000.jpg', exact: true }),
+  ).toBeVisible();
+  expect(await grid.locator('article').count()).toBeLessThanOrEqual(24);
+  await page.getByRole('combobox', { name: 'Search images' }).fill('image-9999.jpg');
+  await expect(
+    grid.getByRole('button', { name: 'Open image-9999.jpg', exact: true }),
+  ).toBeVisible();
+  await expect(grid.locator('article')).toHaveCount(1);
+  expect(await library.evaluate((element) => element.scrollTop)).toBe(0);
 });

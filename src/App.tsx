@@ -10,14 +10,13 @@ import {
   Play,
   Pause,
   Download,
-  ChevronLeft,
-  ChevronRight,
   X,
   LoaderCircle,
   Minus,
   Plus,
 } from 'lucide-react';
 import { api, type Filter, type Folder, type Photo } from './lib/api';
+import { VirtualPhotoGrid } from './components/virtual-photo-grid';
 import { ImageSearch } from './components/image-search';
 import { appendTagSearch, parseSearch } from './lib/search';
 import { TagManager } from './components/tag-manager';
@@ -28,6 +27,7 @@ import { Input, Textarea } from './components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from './components/ui/dialog';
 import { cn } from './lib/utils';
 import { useThumbnailSize } from './lib/use-thumbnail-size';
+import { loadThumbnail } from './lib/thumbnail-loader';
 import { useIndexUpdates } from './lib/use-index-updates';
 
 const initialFilter: Filter = { query: '', folderId: null, status: null, page: 0 };
@@ -57,6 +57,7 @@ export default function App() {
   const photos = useQuery({
     queryKey: ['photos', { ...filter, query }],
     queryFn: () => api.search({ ...filter, query }),
+    gcTime: 0,
   });
   const tags = useQuery({
     queryKey: ['tags', filter.folderId],
@@ -75,6 +76,7 @@ export default function App() {
     onError: (e) => setError(message(e)),
   });
   function change(next: Partial<Filter>) {
+    thumbnails.galleryRef.current?.scrollTo({ top: 0 });
     setFilter((f) => ({ ...f, ...next, page: next.page ?? 0 }));
   }
   function searchTag(tag: string) {
@@ -323,7 +325,12 @@ export default function App() {
               </Button>
             </div>
           )}
-          <div ref={thumbnails.galleryRef} className="min-h-0 flex-1 overflow-y-auto">
+          <div
+            ref={thumbnails.galleryRef}
+            aria-label="Image library"
+            tabIndex={0}
+            className="min-h-0 flex-1 overflow-y-auto [overflow-anchor:none]"
+          >
             {photos.isPending ? (
               <p role="status" className="py-4 text-muted-foreground">
                 Loading images…
@@ -358,14 +365,12 @@ export default function App() {
                 </Button>
               </div>
             ) : (
-              <div
-                aria-label="Image grid"
-                className="grid gap-0"
-                style={{
-                  gridTemplateColumns: `repeat(auto-fill, minmax(0, min(${thumbnails.size}px, 100%)))`,
-                }}
-              >
-                {photos.data.images.map((photo) => (
+              <VirtualPhotoGrid
+                filter={{ ...filter, query }}
+                total={total}
+                size={thumbnails.size}
+                scrollRef={thumbnails.galleryRef}
+                renderPhoto={(photo) => (
                   <PhotoCard
                     onError={setError}
                     key={`${photo.id}-${photo.modified}`}
@@ -373,8 +378,8 @@ export default function App() {
                     onSelect={() => setSelected(photo)}
                     onTag={searchTag}
                   />
-                ))}
-              </div>
+                )}
+              />
             )}
           </div>
           <footer className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t px-4 py-3">
@@ -406,11 +411,7 @@ export default function App() {
                 <Plus aria-hidden />
               </Button>
             </div>
-            <span className="tabular-nums">
-              {total === 0
-                ? '0 images'
-                : `${filter.page * 48 + 1}–${Math.min((filter.page + 1) * 48, total)} of ${total}`}
-            </span>
+            <span className="tabular-nums">{total.toLocaleString()} images</span>
             <div
               className="flex min-w-0 flex-1 items-center justify-center gap-3 text-muted-foreground"
               role="status"
@@ -431,24 +432,6 @@ export default function App() {
                   Retry failed
                 </Button>
               )}
-            </div>
-            <div className="flex gap-3">
-              <Button
-                variant="outline"
-                aria-label="Previous page"
-                disabled={!filter.page}
-                onClick={() => change({ page: filter.page - 1 })}
-              >
-                <ChevronLeft />
-              </Button>
-              <Button
-                variant="outline"
-                aria-label="Next page"
-                disabled={(filter.page + 1) * 48 >= total}
-                onClick={() => change({ page: filter.page + 1 })}
-              >
-                <ChevronRight />
-              </Button>
             </div>
           </footer>
         </main>
@@ -491,9 +474,9 @@ function PhotoCard({
 }) {
   const thumb = useQuery({
     queryKey: ['thumbnail', photo.id, photo.modified],
-    queryFn: () => api.thumbnail(photo.id),
+    queryFn: ({ signal }) => loadThumbnail(photo.id, signal),
     staleTime: Infinity,
-    gcTime: 300000,
+    gcTime: 0,
   });
   const [loadedSource, setLoadedSource] = useState<string>();
   const [failedSource, setFailedSource] = useState<string>();
@@ -590,6 +573,7 @@ function PhotoDialog({
   const [category, setCategory] = useState(photo.category ?? '');
   const preview = useQuery({
     queryKey: ['preview', photo.id, photo.modified],
+    gcTime: 0,
     queryFn: () => api.preview(photo.id),
     staleTime: Infinity,
   });

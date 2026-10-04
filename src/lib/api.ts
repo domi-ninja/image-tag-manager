@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
+import { parseSearch } from './search';
 export interface Folder {
   id: number;
   path: string;
@@ -24,7 +25,7 @@ export interface Photo {
 export interface Filter {
   query: string;
   folderId: number | null;
-  tag: string | null;
+  tags?: string[];
   status: string | null;
   page: number;
 }
@@ -75,11 +76,15 @@ export const api = {
   addFolder: (path: string) => invoke<void>('add_folder', { path }),
   saveFolder: (folder: Folder) => invoke<void>('save_folder', { folder }),
   removeFolder: (id: number) => invoke<void>('remove_folder', { id }),
-  search: (filter: Filter) => invoke<Page>('search', { filter }),
+  search: (filter: Filter) => {
+    const parsed = parseSearch(filter.query);
+    return invoke<Page>('search', { filter: { ...filter, query: parsed.text, tags: parsed.tags } });
+  },
   tags: (folderId: number | null) => invoke<Tag[]>('tags', { folderId }),
   tagCatalog: (query: string, orphansOnly: boolean, page: number) =>
     invoke<TagPage>('tag_catalog', { query, orphansOnly, page }),
-  tagSuggestions: (query: string) => invoke<Tag[]>('tag_suggestions', { query }),
+  tagSuggestions: (query: string, prefix = false) =>
+    invoke<Tag[]>('tag_suggestions', { query, prefix }),
   renameTag: (id: number, name: string) => invoke<void>('rename_tag', { id, name }),
   deleteTag: (id: number) => invoke<void>('delete_tag', { id }),
   purgeOrphanTags: () => invoke<number>('purge_orphan_tags'),

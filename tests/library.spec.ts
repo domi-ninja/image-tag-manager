@@ -87,7 +87,7 @@ test.beforeEach(async ({ page }) => {
             (p) =>
               (!f.folderId || p.folderId === f.folderId) &&
               (!f.status || p.status === f.status) &&
-              (!f.tag || p.tags.some((tag) => tag.name === f.tag)) &&
+              (f.tags ?? []).every((name) => p.tags.some((tag) => tag.name === name)) &&
               (!f.query ||
                 `${p.tags.map((tag) => tag.name).join(' ')} ${p.caption} ${p.filename}`
                   .toLowerCase()
@@ -97,7 +97,11 @@ test.beforeEach(async ({ page }) => {
         }
         if (command === 'tags') return catalog().filter((tag) => tag.count > 0);
         if (command === 'tag_suggestions')
-          return catalog().filter((tag) => tag.name.includes(String(args.query).toLowerCase()));
+          return catalog().filter((tag) =>
+            args.prefix
+              ? tag.name.startsWith(String(args.query).toLowerCase())
+              : tag.name.includes(String(args.query).toLowerCase()),
+          );
         if (command === 'tag_catalog') {
           const all = catalog();
           const filtered = all.filter(
@@ -173,14 +177,14 @@ test.beforeEach(async ({ page }) => {
 });
 test('search, edit tags, and search the edited index', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Open 01.jpg' })).toBeVisible();
-  await page.getByRole('textbox', { name: 'Search images' }).fill('steering');
+  await page.getByRole('combobox', { name: 'Search images' }).fill('steering');
   await expect(page.getByRole('button', { name: /^Open .*jpg$/ })).toHaveCount(1);
   await page.getByRole('button', { name: 'Open 01.jpg' }).click();
   await page.getByRole('combobox', { name: 'Add tag' }).fill('road trip');
   await page.getByRole('option', { name: 'Add "road trip"' }).click();
   await page.getByRole('button', { name: 'Save changes' }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await page.getByRole('textbox', { name: 'Search images' }).fill('road trip');
+  await page.getByRole('combobox', { name: 'Search images' }).fill('road trip');
   await expect(page.getByRole('button', { name: 'Open 01.jpg' })).toBeVisible();
 });
 test('folder configuration and deliberate removal', async ({ page }) => {
@@ -207,9 +211,9 @@ test('keyboard dialog, unsaved edits, empty search, and visual layout', async ({
   await page.getByRole('button', { name: 'Keep editing' }).click();
   await page.getByRole('button', { name: 'Cancel', exact: true }).click();
   await page.getByRole('button', { name: 'Discard changes' }).click();
-  await page.getByRole('textbox', { name: 'Search images' }).fill('no-such-subject');
+  await page.getByRole('combobox', { name: 'Search images' }).fill('no-such-subject');
   await expect(page.getByText('No images match these filters')).toBeVisible();
-  await page.getByRole('textbox', { name: 'Search images' }).clear();
+  await page.getByRole('combobox', { name: 'Search images' }).clear();
   await page.screenshot({ path: 'test-results/library.png', fullPage: true });
   await page.setViewportSize({ width: 850, height: 650 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
@@ -342,6 +346,37 @@ test('tag sources are tinted and the manager shows usage, renames and purges unu
   await expect(page.getByText('Removed 1 unused tags.')).toBeVisible();
   await expect(page.getByRole('row').filter({ hasText: 'unused old tag' })).toHaveCount(0);
   await page.getByRole('button', { name: 'Close dialog' }).click();
-  await page.getByRole('textbox', { name: 'Search images' }).fill('roadtrip');
+  await page.getByRole('combobox', { name: 'Search images' }).fill('roadtrip');
   await expect(page.getByRole('button', { name: `Open ${photo.filename}` })).toBeVisible();
+});
+
+test('tag clicks appear in search and hashtag autocomplete supports keyboard, spaces, and mixed queries', async ({
+  page,
+}) => {
+  const search = page.getByRole('combobox', { name: 'Search images' });
+  await page
+    .getByRole('button', { name: 'Open 01.jpg', exact: true })
+    .locator('xpath=ancestor::article')
+    .getByRole('button', { name: 'car interior', exact: true })
+    .click();
+  await expect(search).toHaveValue('#"car interior"');
+  await expect(page.getByRole('button', { name: /^Open .*jpg$/ })).toHaveCount(1);
+  await search.fill('vintage #ste');
+  const option = page.getByRole('option').filter({ hasText: '#"steering wheel"' });
+  await expect(option).toBeVisible();
+  await page.screenshot({ path: 'test-results/hashtag-search.png' });
+  await search.press('ArrowDown');
+  await search.press('Enter');
+  await expect(search).toHaveValue('vintage #"steering wheel" ');
+  await expect(page.getByRole('button', { name: 'Open 01.jpg', exact: true })).toBeVisible();
+  await expect(page.getByRole('listbox', { name: 'Search tag suggestions' })).toHaveCount(0);
+  await search.fill('#no-such-tag');
+  await expect(page.getByText('No matching tags.', { exact: true })).toBeVisible();
+  await search.press('Escape');
+  await expect(search).toHaveAttribute('aria-expanded', 'false');
+  await search.clear();
+  await expect(page.getByRole('button', { name: /^Open .*jpg$/ })).toHaveCount(fixtures.length);
+  await page.getByRole('button', { name: 'dashboard 1', exact: true }).click();
+  await expect(search).toHaveValue('#dashboard');
+  await expect(page.getByRole('button', { name: /^Open .*jpg$/ })).toHaveCount(1);
 });

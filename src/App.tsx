@@ -1,11 +1,10 @@
-import { useDeferredValue, useState } from 'react';
+import { useDeferredValue, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { open } from '@tauri-apps/plugin-dialog';
 import {
   FolderPlus,
   Folder as FolderIcon,
   Images,
-  Search,
   Settings2,
   ScanLine,
   Play,
@@ -18,6 +17,8 @@ import {
   LoaderCircle,
 } from 'lucide-react';
 import { api, type Filter, type Folder, type Photo } from './lib/api';
+import { ImageSearch } from './components/image-search';
+import { appendTagSearch, parseSearch } from './lib/search';
 import { TagManager } from './components/tag-manager';
 import { TagEditor } from './components/tag-editor';
 import { PhotoContextMenu } from './components/photo-context-menu';
@@ -27,12 +28,14 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from './compone
 import { cn } from './lib/utils';
 import { useIndexUpdates } from './lib/use-index-updates';
 
-const initialFilter: Filter = { query: '', folderId: null, tag: null, status: null, page: 0 };
+const initialFilter: Filter = { query: '', folderId: null, status: null, page: 0 };
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
 export default function App() {
   const client = useQueryClient();
   const [filter, setFilter] = useState<Filter>(initialFilter);
   const query = useDeferredValue(filter.query);
+  const searchInput = useRef<HTMLInputElement>(null);
+  const selectedTags = parseSearch(filter.query).tags;
   const [selected, setSelected] = useState<Photo | null>(null);
   const [folderEdit, setFolderEdit] = useState<Folder | null>(null);
   const [error, setError] = useState('');
@@ -70,6 +73,14 @@ export default function App() {
   });
   function change(next: Partial<Filter>) {
     setFilter((f) => ({ ...f, ...next, page: next.page ?? 0 }));
+  }
+  function searchTag(tag: string) {
+    change({ query: appendTagSearch(filter.query, tag) });
+    requestAnimationFrame(() => {
+      searchInput.current?.focus();
+      const end = searchInput.current?.value.length ?? 0;
+      searchInput.current?.setSelectionRange(end, end);
+    });
   }
   function addFolder() {
     action.mutate(async () => {
@@ -124,7 +135,7 @@ export default function App() {
                 'flex w-full items-center gap-3 rounded-md p-3 text-left hover:bg-muted',
                 filter.folderId === null && 'bg-muted font-medium',
               )}
-              onClick={() => change({ folderId: null, tag: null })}
+              onClick={() => change({ folderId: null })}
               aria-current={filter.folderId === null ? 'page' : undefined}
             >
               <Images className="size-4" />
@@ -138,7 +149,7 @@ export default function App() {
                     'flex min-w-0 flex-1 items-center gap-3 rounded-md p-3 text-left hover:bg-muted',
                     filter.folderId === folder.id && 'bg-muted font-medium',
                   )}
-                  onClick={() => change({ folderId: folder.id, tag: null })}
+                  onClick={() => change({ folderId: folder.id })}
                   title={folder.path}
                   aria-current={filter.folderId === folder.id ? 'page' : undefined}
                 >
@@ -183,10 +194,10 @@ export default function App() {
                   key={tag.name}
                   className={cn(
                     'flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-left hover:bg-muted',
-                    filter.tag === tag.name && 'bg-muted font-medium',
+                    selectedTags.includes(tag.name) && 'bg-muted font-medium',
                   )}
-                  onClick={() => change({ tag: filter.tag === tag.name ? null : tag.name })}
-                  aria-pressed={filter.tag === tag.name}
+                  onClick={() => searchTag(tag.name)}
+                  aria-pressed={selectedTags.includes(tag.name)}
                 >
                   <span className="truncate">{tag.name}</span>
                   <span className="text-muted-foreground tabular-nums">{tag.count}</span>
@@ -280,19 +291,11 @@ export default function App() {
             </section>
           )}
           <div className="flex gap-3 p-4">
-            <div className="relative min-w-0 flex-1">
-              <Search
-                className="absolute left-3 top-2.5 size-4 text-muted-foreground"
-                aria-hidden
-              />
-              <Input
-                className="pl-9"
-                aria-label="Search images"
-                placeholder="Search tags, captions, filenames…"
-                value={filter.query}
-                onChange={(e) => change({ query: e.target.value })}
-              />
-            </div>
+            <ImageSearch
+              value={filter.query}
+              onChange={(query) => change({ query })}
+              inputRef={searchInput}
+            />
             <select
               aria-label="Classification status"
               className="h-9 rounded-md border px-3"
@@ -305,14 +308,6 @@ export default function App() {
               <option value="error">Failed</option>
             </select>
           </div>
-          {filter.tag && (
-            <div className="px-4 pb-3">
-              <Button variant="outline" onClick={() => change({ tag: null })}>
-                Tag: {filter.tag}
-                <X />
-              </Button>
-            </div>
-          )}
           {failure && (
             <div
               role="alert"
@@ -335,7 +330,7 @@ export default function App() {
                 <h3 className="font-medium">
                   {!folders.data?.length
                     ? 'Give your images a home in the index'
-                    : filter.query || filter.tag || filter.status
+                    : filter.query || filter.status
                       ? 'No images match these filters'
                       : 'No images indexed yet'}
                 </h3>
@@ -366,7 +361,7 @@ export default function App() {
                     key={`${photo.id}-${photo.modified}`}
                     photo={photo}
                     onSelect={() => setSelected(photo)}
-                    onTag={(tag) => change({ tag })}
+                    onTag={searchTag}
                   />
                 ))}
               </div>
@@ -424,7 +419,6 @@ export default function App() {
         <TagManager
           onClose={() => setTagManager(false)}
           onChange={async () => {
-            change({ tag: null });
             await invalidate();
           }}
         />
@@ -439,7 +433,7 @@ export default function App() {
           onClose={() => setFolderEdit(null)}
           onSave={async (removed) => {
             await invalidate();
-            if (removed && filter.folderId === folderEdit.id) change({ folderId: null, tag: null });
+            if (removed && filter.folderId === folderEdit.id) change({ folderId: null });
           }}
         />
       )}

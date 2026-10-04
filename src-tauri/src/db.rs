@@ -45,6 +45,8 @@ pub struct Search {
     pub query: String,
     pub folder_id: Option<i64>,
     pub tag: Option<String>,
+    #[serde(default)]
+    pub tags: Vec<String>,
     pub status: Option<String>,
     #[serde(default)]
     pub page: u32,
@@ -217,7 +219,8 @@ impl Db {
             .map(|s| format!("\"{}\"*", s))
             .collect();
         let fts = tokens.join(" AND ");
-        let condition="(?1 IS NULL OR i.folder_id=?1) AND (?2 IS NULL OR i.status=?2) AND (?3 IS NULL OR EXISTS(SELECT 1 FROM image_tags it JOIN tags t ON t.id=it.tag_id WHERE it.image_id=i.id AND t.name=?3))";
+        let exact_tags = serde_json::to_string(&clean_tags(q.tags.clone()))?;
+        let condition="(?1 IS NULL OR i.folder_id=?1) AND (?2 IS NULL OR i.status=?2) AND (?3 IS NULL OR EXISTS(SELECT 1 FROM image_tags it JOIN tags t ON t.id=it.tag_id WHERE it.image_id=i.id AND t.name=?3)) AND NOT EXISTS(SELECT 1 FROM json_each(?5) wanted WHERE NOT EXISTS(SELECT 1 FROM image_tags it JOIN tags t ON t.id=it.tag_id WHERE it.image_id=i.id AND t.name=wanted.value))";
         let condition = if fts.is_empty() {
             condition.to_string()
         } else {
@@ -231,13 +234,20 @@ impl Db {
         };
         let total = c.query_row(
             &format!("SELECT count(*) FROM images i WHERE {condition}"),
-            params![q.folder_id, q.status, q.tag, fts],
+            params![q.folder_id, q.status, q.tag, fts, exact_tags],
             |r| r.get(0),
         )?;
-        let mut s=c.prepare(&format!("SELECT {COLUMNS} FROM images i WHERE {condition} ORDER BY i.filename COLLATE NOCASE,i.id LIMIT 48 OFFSET ?5"))?;
+        let mut s=c.prepare(&format!("SELECT {COLUMNS} FROM images i WHERE {condition} ORDER BY i.filename COLLATE NOCASE,i.id LIMIT 48 OFFSET ?6"))?;
         let mut images: Vec<Photo> = s
             .query_map(
-                params![q.folder_id, q.status, q.tag, fts, i64::from(q.page) * 48],
+                params![
+                    q.folder_id,
+                    q.status,
+                    q.tag,
+                    fts,
+                    exact_tags,
+                    i64::from(q.page) * 48
+                ],
                 photo_row,
             )?
             .collect::<rusqlite::Result<_>>()?;

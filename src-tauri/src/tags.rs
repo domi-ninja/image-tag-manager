@@ -183,10 +183,10 @@ impl Db {
             orphans,
         })
     }
-    pub fn tag_suggestions(&self, query: &str) -> Result<Vec<Tag>> {
+    pub fn tag_suggestions(&self, query: &str, prefix: bool) -> Result<Vec<Tag>> {
         let c = self.connect()?;
-        let mut stmt=c.prepare("SELECT t.id,t.name,count(DISTINCT it.image_id) FROM tags t LEFT JOIN image_tags it ON it.tag_id=t.id WHERE instr(t.name,?1)>0 GROUP BY t.id ORDER BY (t.name=?1) DESC,count(DISTINCT it.image_id) DESC,t.name LIMIT 60")?;
-        let rows = stmt.query_map([query.trim().to_lowercase()], |r| {
+        let mut stmt=c.prepare("SELECT t.id,t.name,count(DISTINCT it.image_id) FROM tags t LEFT JOIN image_tags it ON it.tag_id=t.id WHERE (?2=0 AND instr(t.name,?1)>0) OR (?2=1 AND substr(t.name,1,length(?1))=?1) GROUP BY t.id ORDER BY (t.name=?1) DESC,count(DISTINCT it.image_id) DESC,t.name LIMIT 60")?;
+        let rows = stmt.query_map(params![query.trim().to_lowercase(), prefix], |r| {
             Ok(Tag {
                 id: r.get(0)?,
                 name: r.get(1)?,
@@ -395,10 +395,10 @@ mod tests {
         assert_eq!(db.tag_catalog("unused", true, 2).unwrap().tags.len(), 23);
         assert_eq!(db.tag_catalog("unused", true, 0).unwrap().total, 123);
         assert_eq!(
-            db.tag_suggestions("unused 122").unwrap()[0].name,
+            db.tag_suggestions("unused 122", false).unwrap()[0].name,
             "unused 122"
         );
-        let id = db.tag_suggestions("unused 122").unwrap()[0].id;
+        let id = db.tag_suggestions("unused 122", false).unwrap()[0].id;
         db.delete_tag(id).unwrap();
         assert_eq!(db.tag_catalog("", true, 0).unwrap().total, 122);
         assert_eq!(db.tag_catalog("' OR 1=1 --", false, 0).unwrap().total, 0);
@@ -496,5 +496,80 @@ mod tests {
                 .unwrap(),
             "woodland"
         );
+    }
+}
+
+#[cfg(test)]
+mod search_tests {
+    use super::*;
+    use crate::db::{Classification, Search};
+    use std::sync::atomic::AtomicBool;
+
+    #[test]
+    fn exact_tags_combine_with_text_folder_and_status_without_prefix_or_caption_matches() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("images");
+        std::fs::create_dir(&root).unwrap();
+        for name in ["one.jpg", "two.jpg"] {
+            std::fs::write(root.join(name), b"image").unwrap();
+        }
+        let db = Db::new(dir.path().join("db")).unwrap();
+        db.add_folder(root.to_str().unwrap()).unwrap();
+        let folder = db.folders().unwrap().remove(0);
+        db.scan(&folder, &AtomicBool::new(false)).unwrap();
+        let photos = db.search(&Search::default()).unwrap().images;
+        for (photo, tags) in photos
+            .iter()
+            .zip([vec!["forest", "green trees"], vec!["forestry"]])
+        {
+            db.store(
+                photo.id,
+                Classification {
+                    tags: tags.into_iter().map(String::from).collect(),
+                    caption: "sunset forest".into(),
+                    category: None,
+                },
+                None,
+            )
+            .unwrap();
+        }
+        let filter = Search {
+            tags: vec![" FOREST ".into(), "green trees".into()],
+            query: "sun".into(),
+            folder_id: Some(folder.id),
+            status: Some("classified".into()),
+            ..Default::default()
+        };
+        assert_eq!(db.search(&filter).unwrap().total, 1);
+        assert_eq!(
+            db.search(&Search {
+                tags: vec!["fore".into()],
+                ..Default::default()
+            })
+            .unwrap()
+            .total,
+            0
+        );
+        assert_eq!(
+            db.search(&Search {
+                tags: vec!["forest".into(), "forestry".into()],
+                ..Default::default()
+            })
+            .unwrap()
+            .total,
+            0
+        );
+        assert_eq!(
+            db.search(&Search {
+                tags: vec!["x'; DROP TABLE tags; --".into()],
+                ..Default::default()
+            })
+            .unwrap()
+            .total,
+            0
+        );
+        assert_eq!(db.tag_suggestions("fo", true).unwrap().len(), 2);
+        assert!(db.tag_suggestions("orest", true).unwrap().is_empty());
+        assert_eq!(db.tag_suggestions("orest", false).unwrap().len(), 2);
     }
 }

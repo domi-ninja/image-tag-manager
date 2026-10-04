@@ -34,7 +34,11 @@ macOS has not been tested.
 3. Choose **Classify pending**, or enable **Classify automatically**. Automatic mode
    checks enabled folders every 30 seconds while the app is open.
 4. Search tags, captions, filenames, and categories. Words use prefix matching and
-   combine with AND. Click a tag for an exact tag filter. Filter by folder or status.
+   combine with AND. Click a tag to insert it into the search field as `#tag`.
+   Type `#` followed by a name for autocomplete. Names with spaces use
+   `#"green trees"`; selecting a suggestion adds the quotes for you. Hashtags match
+   exact tags and combine with each other and ordinary search words. Clear the field
+   to remove tag filters. Filter by folder or status.
 5. Open an image to edit tags with autocomplete and click a tag button to remove it.
    Pale blue tags come from manual edits or folder names; hover for the exact source.
    AI tags stay neutral. Edits update search immediately.
@@ -150,7 +154,7 @@ the resulting index. It does not call Python or a hosted model API.
 ### Verified in this workspace
 
 - Linux Debian installer built successfully, approximately 38 MB including the CPU runtime.
-- Fourteen Rust database tests and six browser interaction tests passed; TypeScript build
+- Fifteen Rust database tests, seven browser interaction tests, and a search parser test passed; TypeScript build
   and Rust clippy passed.
 - The native app migrated a 21-image test index, preserved legacy tags, and passed
   source tracking, usage count, rename/search, and orphan deletion checks. See

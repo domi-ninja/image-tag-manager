@@ -54,8 +54,9 @@ fn tag_catalog(
     s.db.tag_catalog(&query, orphans_only, page).map_err(err)
 }
 #[tauri::command]
-fn tag_suggestions(s: State<AppState>, query: String) -> Response<Vec<Tag>> {
-    s.db.tag_suggestions(&query).map_err(err)
+fn tag_suggestions(s: State<AppState>, query: String, prefix: Option<bool>) -> Response<Vec<Tag>> {
+    s.db.tag_suggestions(&query, prefix.unwrap_or(false))
+        .map_err(err)
 }
 #[tauri::command]
 fn rename_tag(s: State<AppState>, id: i64, name: String) -> Response<()> {

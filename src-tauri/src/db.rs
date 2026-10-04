@@ -90,14 +90,14 @@ fn photo_row(r: &rusqlite::Row<'_>) -> rusqlite::Result<Photo> {
         filename: r.get(3)?,
         caption: r.get(4)?,
         tags: vec![],
-        category: r.get(6)?,
-        status: r.get(7)?,
-        error: r.get(8)?,
-        modified: r.get(9)?,
+        category: r.get(5)?,
+        status: r.get(6)?,
+        error: r.get(7)?,
+        modified: r.get(8)?,
     })
 }
 const COLUMNS: &str =
-    "i.id,i.folder_id,i.path,i.filename,i.caption,NULL,i.category,i.status,i.error,i.modified";
+    "i.id,i.folder_id,i.path,i.filename,i.caption,i.category,i.status,i.error,i.modified";
 impl Db {
     pub fn new(root: impl AsRef<Path>) -> Result<Self> {
         let db = Self {
@@ -106,20 +106,7 @@ impl Db {
         std::fs::create_dir_all(db.root.join("thumbnails"))?;
         let mut c = db.connect()?;
         c.execute_batch("PRAGMA journal_mode=WAL;")?;
-        let version: i64 = c.query_row("PRAGMA user_version", [], |r| r.get(0))?;
-        if version > 2 {
-            bail!("This index was created by a newer version of Image Shelf");
-        }
-        if version == 0 {
-            c.execute_batch(include_str!("schema-v1.sql"))?;
-        }
-        if version < 2 {
-            let backup = db.root.join("index.before-tag-entities.sqlite3");
-            if version == 1 && !backup.exists() {
-                c.execute("VACUUM INTO ?1", [backup.to_string_lossy().as_ref()])?;
-            }
-            tags::migrate(&mut c)?;
-        }
+        crate::migrations::run(&mut c)?;
         Ok(db)
     }
     pub fn connect(&self) -> Result<Connection> {
@@ -383,7 +370,7 @@ impl Db {
                 }
                 Some((id, _, _)) => {
                     tx.execute(
-                        "DELETE FROM image_tags WHERE image_id=?1 AND source IN ('ai','legacy')",
+                        "DELETE FROM image_tags WHERE image_id=?1 AND source='ai'",
                         [id],
                     )?;
                     tx.execute("UPDATE images SET modified=?1,size=?2,seen=?3,caption='',category=NULL,status='pending',error=NULL WHERE id=?4",params![modified,meta.len() as i64,generation,id])?;

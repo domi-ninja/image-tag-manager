@@ -58,7 +58,6 @@ export function TagEditor({
                   ai: 'AI',
                   user: 'User',
                   folder: 'Folder name',
-                  legacy: 'Origin unknown (existing tag)',
                 })[source],
             )
             .join(', ');

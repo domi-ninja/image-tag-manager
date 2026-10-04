@@ -10,7 +10,6 @@ pub enum TagSource {
     Ai,
     User,
     Folder,
-    Legacy,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PhotoTag {
@@ -56,12 +55,12 @@ pub fn photo_tags(c: &Connection, image: i64) -> Result<Vec<PhotoTag>> {
             sources: sources
                 .split(',')
                 .map(|s| match s {
-                    "ai" => TagSource::Ai,
-                    "user" => TagSource::User,
-                    "folder" => TagSource::Folder,
-                    _ => TagSource::Legacy,
+                    "ai" => Ok(TagSource::Ai),
+                    "user" => Ok(TagSource::User),
+                    "folder" => Ok(TagSource::Folder),
+                    _ => Err(rusqlite::Error::InvalidQuery),
                 })
-                .collect(),
+                .collect::<rusqlite::Result<_>>()?,
         })
     })?;
     Ok(rows.collect::<rusqlite::Result<_>>()?)
@@ -104,41 +103,6 @@ pub fn sync_folder_tags(c: &Connection, image: i64, root: &str, path: &str) -> R
             attach(c, image, &name, "folder")?;
         }
     }
-    Ok(())
-}
-
-pub fn migrate(c: &mut Connection) -> Result<()> {
-    let tx = c.transaction_with_behavior(TransactionBehavior::Immediate)?;
-    tx.execute_batch(include_str!("tags-schema.sql"))?;
-    let photos = {
-        let mut stmt = tx.prepare("SELECT i.id,i.path,f.path,i.tags_json FROM images i JOIN folders f ON f.id=i.folder_id")?;
-        let rows = stmt.query_map([], |r| {
-            Ok((
-                r.get::<_, i64>(0)?,
-                r.get::<_, String>(1)?,
-                r.get::<_, String>(2)?,
-                r.get::<_, String>(3)?,
-            ))
-        })?;
-        rows.collect::<rusqlite::Result<Vec<_>>>()?
-    };
-    for (id, path, root, raw) in photos {
-        let mut names: Vec<String> =
-            serde_json::from_str(&raw).context("Could not migrate existing image tags")?;
-        let mut stmt = tx.prepare("SELECT name FROM legacy_tags WHERE image_id=?1")?;
-        names.extend(
-            stmt.query_map([id], |r| r.get::<_, String>(0))?
-                .collect::<rusqlite::Result<Vec<_>>>()?,
-        );
-        for name in clean_tags(names) {
-            attach(&tx, id, &name, "legacy")?;
-        }
-        sync_folder_tags(&tx, id, &root, &path)?;
-    }
-    tx.execute_batch(
-        "DROP TABLE legacy_tags; ALTER TABLE images DROP COLUMN tags_json; PRAGMA user_version=2;",
-    )?;
-    tx.commit()?;
     Ok(())
 }
 
@@ -402,100 +366,6 @@ mod tests {
         db.delete_tag(id).unwrap();
         assert_eq!(db.tag_catalog("", true, 0).unwrap().total, 122);
         assert_eq!(db.tag_catalog("' OR 1=1 --", false, 0).unwrap().total, 0);
-    }
-    fn legacy_fixture(raw: &str) -> tempfile::TempDir {
-        let dir = tempfile::tempdir().unwrap();
-        let c = Connection::open(dir.path().join("index.sqlite3")).unwrap();
-        c.execute_batch(include_str!("schema-v1.sql")).unwrap();
-        let root = dir.path().join("photos");
-        let path = root.join("Trips").join("one.jpg");
-        c.execute(
-            "INSERT INTO folders(id,path,name) VALUES(1,?1,'Photos')",
-            [root.to_string_lossy().as_ref()],
-        )
-        .unwrap();
-        c.execute("INSERT INTO images(id,folder_id,path,filename,modified,size,seen,caption,tags_json,tags_text,status) VALUES(1,1,?1,'one.jpg',1,1,'old','Caption',?2,'forest','classified')",params![path.to_string_lossy(),raw]).unwrap();
-        c.execute("INSERT INTO tags(image_id,name) VALUES(1,'woodland')", [])
-            .unwrap();
-        dir
-    }
-    #[test]
-    fn migration_preserves_old_tags_backfills_folder_tags_and_is_repeatable() {
-        let dir = legacy_fixture(r#"[" Forest ", "forest"]"#);
-        let db = Db::new(dir.path()).unwrap();
-        assert!(dir
-            .path()
-            .join("index.before-tag-entities.sqlite3")
-            .is_file());
-        let old = Connection::open(dir.path().join("index.before-tag-entities.sqlite3")).unwrap();
-        assert_eq!(
-            old.query_row("PRAGMA user_version", [], |r| r.get::<_, i64>(0))
-                .unwrap(),
-            1
-        );
-        let photo = db.photo(1).unwrap();
-        assert_eq!(photo.caption, "Caption");
-        assert_eq!(photo.tags.len(), 3);
-        assert_eq!(
-            photo
-                .tags
-                .iter()
-                .find(|t| t.name == "forest")
-                .unwrap()
-                .sources,
-            vec![TagSource::Legacy]
-        );
-        assert_eq!(
-            photo
-                .tags
-                .iter()
-                .find(|t| t.name == "trips")
-                .unwrap()
-                .sources,
-            vec![TagSource::Folder]
-        );
-        for name in ["forest", "woodland", "trips"] {
-            assert_eq!(count(&db, name), 1);
-        }
-        let c = db.connect().unwrap();
-        assert!(c.prepare("SELECT tags_json FROM images").is_err());
-        assert_eq!(
-            c.query_row("SELECT count(*) FROM pragma_foreign_key_check", [], |r| r
-                .get::<_, i64>(
-                0
-            ))
-            .unwrap(),
-            0
-        );
-        c.execute(
-            "INSERT INTO image_search(image_search) VALUES('integrity-check')",
-            [],
-        )
-        .unwrap();
-        drop(db);
-        assert_eq!(Db::new(dir.path()).unwrap().photo(1).unwrap().tags.len(), 3);
-    }
-    #[test]
-    fn invalid_legacy_data_rolls_back_migration_without_losing_originals() {
-        let dir = legacy_fixture("not-json");
-        assert!(Db::new(dir.path()).is_err());
-        let c = Connection::open(dir.path().join("index.sqlite3")).unwrap();
-        assert_eq!(
-            c.query_row("PRAGMA user_version", [], |r| r.get::<_, i64>(0))
-                .unwrap(),
-            1
-        );
-        assert_eq!(
-            c.query_row("SELECT tags_json FROM images", [], |r| r
-                .get::<_, String>(0))
-                .unwrap(),
-            "not-json"
-        );
-        assert_eq!(
-            c.query_row("SELECT name FROM tags", [], |r| r.get::<_, String>(0))
-                .unwrap(),
-            "woodland"
-        );
     }
 }
 

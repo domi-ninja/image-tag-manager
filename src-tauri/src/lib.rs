@@ -6,3 +6,5 @@ pub mod inference;
 mod process;
 
 pub mod tags;
+
+mod migrations;

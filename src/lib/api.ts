@@ -33,7 +33,7 @@ export interface Page {
   images: Photo[];
   total: number;
 }
-export type TagSource = 'ai' | 'user' | 'folder' | 'legacy';
+export type TagSource = 'ai' | 'user' | 'folder';
 export interface PhotoTag {
   id: number;
   name: string;

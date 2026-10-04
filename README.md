@@ -10,7 +10,7 @@ research files remain in this repository; see [EXPERIMENT.md](EXPERIMENT.md).
 
 ## Run from source
 
-Install Node 22+, pnpm, stable Rust, and the [Tauri platform prerequisites](https://v2.tauri.app/start/prerequisites/).
+Install Node 22+, pnpm, Rust 1.92+ (stable), and the [Tauri platform prerequisites](https://v2.tauri.app/start/prerequisites/).
 On Ubuntu:
 
 ```sh
@@ -102,16 +102,25 @@ Tauri's per-user application data directory stores:
 Typical Linux path: `~/.local/share/com.domi.imageshelf/`.
 Typical Windows path: `%APPDATA%\com.domi.imageshelf\`.
 Tags are unique entities in `tags`, connected to images through `image_tags`.
-Each assignment records its source: AI, user, folder, or legacy. Repeated names are
+Each assignment records its source: AI, user, or folder. Repeated names are
 trimmed, lowercased, and deduplicated; use counts count distinct images. A tag can
 have several sources on one image. `images.tags_text` is a derived FTS cache,
 maintained by relationship triggers, not the authoritative tag store.
 
-On first launch with an older index, the app saves
-`index.before-tag-entities.sqlite3` in the same data directory, then migrates in a
-transaction and adds tags from existing paths. Old tags are marked “origin unknown”
-because previous versions did not record their source. The old `tags_json` column
-is removed. Do not open a migrated index with an older app version.
+Database changes use [Refinery](https://github.com/rust-db/refinery), with numbered SQL
+files embedded from `src-tauri/migrations/`. Applied versions, names, checksums, and
+timestamps live in `refinery_schema_history`. Pending migrations run together in
+one transaction. Failed upgrades roll back; changed migration checksums, missing
+migrations, and databases from newer app versions stop startup without resetting data.
+
+The two pre-Refinery prototype schemas are discarded once, including folder settings
+and indexed classifications. Re-add folders and classify again. Image files and model
+weights are untouched. There is no string-tag conversion, legacy source, or automatic
+backup of these disposable prototype indexes. Unknown schemas are never reset.
+
+To change the database, add the next `V<number>__description.sql` migration and run
+`cargo test --manifest-path src-tauri/Cargo.toml --lib`. Never edit, remove, or renumber
+an applied migration. See [migration conventions](src-tauri/migrations/README.md).
 
 The SQLite index uses WAL and foreign-key cascades. Search is paginated at 48 images;
 the UI never loads a whole large library into memory. Thumbnails are decoded serially
@@ -141,7 +150,7 @@ pnpm exec playwright test
 
 The Rust tests exercise real SQLite indexing, prefix search, tag updates, pagination,
 folder removal, changed/missing files, overlapping roots, background/manual edit
-races, transactional tag migration, source preservation, counts, merging, and orphan cleanup. Browser tests exercise the actual React UI with a mocked Tauri bridge and the
+races, migration rollback/checksums, source preservation, counts, merging, and orphan cleanup. Browser tests exercise the actual React UI with a mocked Tauri bridge and the
 retained sample photos. They do not claim to exercise a native Windows webview.
 
 Run a real, native inference and indexing check without the desktop window:
@@ -158,11 +167,8 @@ the resulting index. It does not call Python or a hosted model API.
 ### Verified in this workspace
 
 - Linux Debian installer built successfully, approximately 38 MB including the CPU runtime.
-- Fifteen Rust database tests, eight browser interaction tests, and a search parser test passed; TypeScript build
+- Seventeen Rust database tests, eight browser interaction tests, and a search parser test passed; TypeScript build
   and Rust clippy passed.
-- The native app migrated a 21-image test index, preserved legacy tags, and passed
-  source tracking, usage count, rename/search, and orphan deletion checks. See
-  [tag validation](results/tag-native-validation.json).
 - The extracted Debian app ran in native WebKit through WebDriver. Real Qwen inference
   with configured categories reached SQLite, tag search returned the indexed results,
   and pause retained pending images. See [native validation](results/desktop-validation.json)

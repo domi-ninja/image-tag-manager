@@ -58,6 +58,8 @@ pixels and are remembered on this device. Ordinary scrolling and text size stay 
 The grid shows edge-to-edge images without labels or icons. Hover over an image
 or focus it with the keyboard to show its filename, caption, category, and clickable
 tags. These details are loaded with the grid and appear immediately.
+Pending thumbnails show a loading indicator until the image is ready to display;
+failed previews show an explicit message. Loaded tiles have no permanent decorations.
 
 Each nested directory below a configured folder contributes its name as a tag.
 For example, with a root of `Photos`, `Photos/Trips/Alps/image.jpg` gets `trips`
@@ -176,7 +178,7 @@ the resulting index. It does not call Python or a hosted model API.
 ### Verified in this workspace
 
 - Linux Debian installer built successfully, approximately 38 MB including the CPU runtime.
-- Nineteen Rust database/worker tests, ten browser interaction tests, and a search parser test passed; TypeScript build
+- Nineteen Rust database/worker tests, eleven browser interaction tests, and a search parser test passed; TypeScript build
   and Rust clippy passed.
 - The extracted Debian app ran in native WebKit through WebDriver. Real Qwen inference
   with configured categories reached SQLite, tag search returned the indexed results,

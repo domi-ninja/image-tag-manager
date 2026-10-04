@@ -80,6 +80,13 @@ test.beforeEach(async ({ page }) => {
         if (command === 'folders') return folders;
         if (command === 'stats')
           return { total: images.length, classified: images.length, pending: 0, errors: 0 };
+        if (command === 'thumbnail' && sessionStorage.getItem('hold-thumbnails')) {
+          await new Promise<void>((resolve) =>
+            window.addEventListener('release-thumbnails', () => resolve(), { once: true }),
+          );
+          if (args.id === 2) return 'data:image/jpeg;base64,broken';
+          if (args.id === 3) throw new Error('Image file unavailable');
+        }
         if (command === 'thumbnail' || command === 'preview') return thumbnails[Number(args.id)];
         if (command === 'search') {
           const f = args.filter as Filter;
@@ -526,4 +533,35 @@ test('grid is seamless and shows preloaded details only on hover or keyboard foc
   await expect(details).toBeHidden();
   await first.getByRole('button', { name: `Open ${fixtures[0].filename}`, exact: true }).focus();
   await expect(details).toBeVisible();
+});
+
+test('tiles show loading until ready and show failures instead of blank tiles', async ({
+  page,
+}) => {
+  await page.evaluate(() => sessionStorage.setItem('hold-thumbnails', 'true'));
+  await page.reload();
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  const grid = page.getByLabel('Image grid', { exact: true });
+  const tile = grid.getByRole('button', { name: 'Open 01.jpg', exact: true });
+  await expect(grid.getByText('Loading preview…', { exact: true })).toHaveCount(fixtures.length);
+  await expect(tile).toHaveAttribute('aria-busy', 'true');
+  await expect(tile.locator('svg')).toHaveCSS('animation-name', 'none');
+  const before = await tile.boundingBox();
+  await page.screenshot({ path: 'test-results/tiles-loading.png' });
+  // Hover metadata remains available while thumbnails are still pending.
+  await tile.hover({ position: { x: 8, y: 8 } });
+  await expect(grid.getByLabel('Details for 01.jpg')).toContainText(fixtures[0].caption);
+  await page.mouse.move(0, 0);
+  await page.evaluate(() => window.dispatchEvent(new Event('release-thumbnails')));
+  await expect(tile).toHaveAttribute('aria-busy', 'false');
+  await expect(tile.getByText('Loading preview…')).toHaveCount(0);
+  await expect(tile.locator('img')).toBeVisible();
+  expect(await tile.boundingBox()).toEqual(before);
+  for (const photo of fixtures.slice(1, 3)) {
+    const failed = grid.getByRole('button', { name: `Open ${photo.filename}`, exact: true });
+    await expect(failed.getByText('Preview unavailable', { exact: true })).toBeVisible();
+    await expect(failed).toHaveAttribute('aria-busy', 'false');
+  }
+  await expect(grid.getByText('Loading preview…', { exact: true })).toHaveCount(0);
+  await page.screenshot({ path: 'test-results/tiles-ready-and-failed.png' });
 });

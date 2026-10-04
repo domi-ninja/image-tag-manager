@@ -495,15 +495,20 @@ function PhotoCard({
     staleTime: Infinity,
     gcTime: 300000,
   });
+  const [loadedSource, setLoadedSource] = useState<string>();
+  const [failedSource, setFailedSource] = useState<string>();
+  const previewFailed = thumb.isError || Boolean(thumb.data && failedSource === thumb.data);
+  const previewLoading = !previewFailed && (!thumb.data || loadedSource !== thumb.data);
   return (
     <PhotoContextMenu photoId={photo.id} onError={onError}>
       <article className="group relative min-w-0 bg-muted">
         <button
           onClick={onSelect}
-          className="block aspect-[4/3] w-full overflow-hidden text-left focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+          className="relative block aspect-[4/3] w-full overflow-hidden text-left focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
           aria-label={`Open ${photo.filename}`}
+          aria-busy={previewLoading}
         >
-          {thumb.data && (
+          {thumb.data && !previewFailed && (
             <img
               src={thumb.data}
               alt={photo.caption || photo.filename}
@@ -511,7 +516,21 @@ function PhotoCard({
               loading="lazy"
               width={360}
               height={270}
+              onLoad={() => setLoadedSource(thumb.data)}
+              onError={() => setFailedSource(thumb.data)}
             />
+          )}
+          {previewLoading && (
+            <span className="absolute inset-0 flex flex-col items-center justify-center gap-3 border border-background bg-muted text-muted-foreground">
+              <LoaderCircle aria-hidden className="size-6 motion-safe:animate-spin" />
+              <span>Loading preview…</span>
+            </span>
+          )}
+          {previewFailed && (
+            <span className="absolute inset-0 flex flex-col items-center justify-center gap-3 border border-background bg-muted p-3 text-center text-muted-foreground">
+              <span>Preview unavailable</span>
+              <span className="underline">Open image</span>
+            </span>
           )}
         </button>
         <div
@@ -527,7 +546,7 @@ function PhotoCard({
                   : 'Waiting for classification')}
             </p>
             {photo.category && <p className="break-words">Category: {photo.category}</p>}
-            {thumb.isError && (
+            {previewFailed && (
               <p className="text-destructive">Preview unavailable. Open to review.</p>
             )}
           </button>

@@ -1,0 +1,126 @@
+{
+  "method": "Assistant visual review of raw Qwen output against retained images and pre-inference descriptions. Pass means the main scene is correctly identified with no material unsupported detail found. Mostly right means useful main subjects with an unsupported or questionable detail. This subjective 20-photo spot check is not benchmark accuracy. Review includes full-resolution inspection.",
+  "annotation_caveat": "Image 08's pre-inference wall/vines description was too specific. Full-resolution inspection supports weathered boards with leaves and plants; a deck or floor is plausible. The original annotation is preserved. Sunrise versus sunset cannot be established from images 06 and 07 alone.",
+  "results": [
+    {
+      "image": "01.jpg",
+      "verdict": "Pass",
+      "main_subject_correct": true,
+      "note": "Car interior, dashboard and steering wheel are correct."
+    },
+    {
+      "image": "02.jpg",
+      "verdict": "Mostly right",
+      "main_subject_correct": true,
+      "note": "Blossoms are correct; exact cherry identification is unverified."
+    },
+    {
+      "image": "03.jpg",
+      "verdict": "Pass",
+      "main_subject_correct": true,
+      "note": "Bride, vehicle window, veil and bouquet are visible."
+    },
+    {
+      "image": "04.jpg",
+      "verdict": "Pass",
+      "main_subject_correct": true,
+      "note": "Wooden shed, forest and hills are correct."
+    },
+    {
+      "image": "05.jpg",
+      "verdict": "Pass",
+      "main_subject_correct": true,
+      "note": "Analog clock and approximate 12:35 reading are supported."
+    },
+    {
+      "image": "06.jpg",
+      "verdict": "Mostly right",
+      "main_subject_correct": true,
+      "note": "Field and trees are correct; sunrise versus sunset is uncertain."
+    },
+    {
+      "image": "07.jpg",
+      "verdict": "Mostly right",
+      "main_subject_correct": true,
+      "note": "Grass, trees and bokeh are correct; sunrise is unverified."
+    },
+    {
+      "image": "08.jpg",
+      "verdict": "Pass",
+      "main_subject_correct": true,
+      "note": "Boards, leaves and plants are correct. Floor/wall is ambiguous."
+    },
+    {
+      "image": "09.jpg",
+      "verdict": "Pass",
+      "main_subject_correct": true,
+      "note": "Eiffel Tower and surrounding city buildings are correct."
+    },
+    {
+      "image": "10.jpg",
+      "verdict": "Pass",
+      "main_subject_correct": true,
+      "note": "Rocky green coastline and sea are correct."
+    },
+    {
+      "image": "11.jpg",
+      "verdict": "Pass",
+      "main_subject_correct": true,
+      "note": "Skyscrapers and upward viewpoint are correct."
+    },
+    {
+      "image": "12.jpg",
+      "verdict": "Mostly right",
+      "main_subject_correct": true,
+      "note": "Bathers, hot spring and steam are right; lakeside is unsupported."
+    },
+    {
+      "image": "13.jpg",
+      "verdict": "Pass",
+      "main_subject_correct": true,
+      "note": "Suspension bridge and pedestrians are correct; Brooklyn Bridge is recognizable."
+    },
+    {
+      "image": "14.jpg",
+      "verdict": "Pass",
+      "main_subject_correct": true,
+      "note": "Mountains, rock and green slopes are correct."
+    },
+    {
+      "image": "15.jpg",
+      "verdict": "Pass",
+      "main_subject_correct": true,
+      "note": "Finds both the person/car and the surrounding geometric lawn."
+    },
+    {
+      "image": "16.jpg",
+      "verdict": "Pass",
+      "main_subject_correct": true,
+      "note": "Chair, window and curtain are correct."
+    },
+    {
+      "image": "17.jpg",
+      "verdict": "Mostly right",
+      "main_subject_correct": true,
+      "note": "Audio mixer and hand are right; music studio is not established."
+    },
+    {
+      "image": "18.jpg",
+      "verdict": "Pass",
+      "main_subject_correct": true,
+      "note": "Football field, stadium and aerial viewpoint are correct."
+    },
+    {
+      "image": "19.jpg",
+      "verdict": "Mostly right",
+      "main_subject_correct": true,
+      "note": "People, white cliff and sea are correct; dawn is unverified."
+    },
+    {
+      "image": "20.jpg",
+      "verdict": "Mostly right",
+      "main_subject_correct": true,
+      "note": "Mountain cliffs and valley are correct; sunrise is unverified."
+    }
+  ]
+}

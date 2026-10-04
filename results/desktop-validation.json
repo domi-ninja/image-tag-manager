@@ -1,0 +1,32 @@
+{
+  "before": {
+    "pending": 16,
+    "errors": 0,
+    "total": 21,
+    "classified": 5
+  },
+  "after": {
+    "pending": 14,
+    "errors": 0,
+    "total": 21,
+    "classified": 7
+  },
+  "search": {
+    "query": "mountain",
+    "total": 3
+  },
+  "status": {
+    "revision": 8,
+    "busy": false,
+    "automatic": false,
+    "phase": "idle",
+    "modelReady": true,
+    "processed": 2,
+    "message": "Paused. Unfinished images stay queued."
+  },
+  "platform": "Linux native WebKit, extracted Debian package",
+  "runtime": "Bundled llama.cpp, Qwen3-VL-2B Q8_0, 8 CPU threads",
+  "classificationMode": "Live native inference with configured category enum",
+  "lifecycle": "Verified no model process remained after native window closure",
+  "windows": "Process-management module cross-compiled for x86_64-pc-windows-gnu; full Windows app not executed"
+}

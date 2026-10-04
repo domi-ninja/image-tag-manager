@@ -1,0 +1,14 @@
+[
+  {
+    "repo": "google/siglip2-base-patch16-224",
+    "revision": "75de2d55ec2d0b4efc50b3e9ad70dba96a7b2fa2"
+  },
+  {
+    "repo": "timm/MobileCLIP2-S2-OpenCLIP",
+    "revision": "ac6b37c8fc40b62b623d09ed228a6f0c9bc29fe6"
+  },
+  {
+    "repo": "Qwen/Qwen3-VL-2B-Instruct",
+    "revision": "89644892e4d85e24eaac8bacfd4f463576704203"
+  }
+]

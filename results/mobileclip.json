@@ -1,0 +1,626 @@
+{
+  "model": "mobileclip",
+  "device": "cpu",
+  "threads": 8,
+  "load_seconds": 3.5200141239984077,
+  "median_seconds": 0.06522367800062057,
+  "annotations_sha256": "acf5838924921f56d8a909431f534e3cd5f3c7e4f61ac1b3ba51148a2d99b7b9",
+  "results": [
+    {
+      "image": "01.jpg",
+      "expected": "car interior",
+      "predictions": [
+        {
+          "label": "car interior",
+          "cosine_similarity": 0.30451834201812744
+        },
+        {
+          "label": "person in a vehicle",
+          "cosine_similarity": 0.26849064230918884
+        },
+        {
+          "label": "boat",
+          "cosine_similarity": 0.2186514437198639
+        },
+        {
+          "label": "train",
+          "cosine_similarity": 0.17708879709243774
+        },
+        {
+          "label": "cabin in a forest",
+          "cosine_similarity": 0.1766086369752884
+        }
+      ],
+      "correct": true,
+      "seconds": 0.06328305999340955
+    },
+    {
+      "image": "02.jpg",
+      "expected": "flowers",
+      "predictions": [
+        {
+          "label": "flowers",
+          "cosine_similarity": 0.2794820964336395
+        },
+        {
+          "label": "painting",
+          "cosine_similarity": 0.1727304905653
+        },
+        {
+          "label": "bird",
+          "cosine_similarity": 0.16139858961105347
+        },
+        {
+          "label": "insect",
+          "cosine_similarity": 0.15008269250392914
+        },
+        {
+          "label": "screenshot",
+          "cosine_similarity": 0.14656299352645874
+        }
+      ],
+      "correct": true,
+      "seconds": 0.06477952700515743
+    },
+    {
+      "image": "03.jpg",
+      "expected": "person in a vehicle",
+      "predictions": [
+        {
+          "label": "person in a vehicle",
+          "cosine_similarity": 0.28168177604675293
+        },
+        {
+          "label": "car interior",
+          "cosine_similarity": 0.21180778741836548
+        },
+        {
+          "label": "train",
+          "cosine_similarity": 0.16328077018260956
+        },
+        {
+          "label": "screenshot",
+          "cosine_similarity": 0.1584097146987915
+        },
+        {
+          "label": "painting",
+          "cosine_similarity": 0.15045611560344696
+        }
+      ],
+      "correct": true,
+      "seconds": 0.06427859499672195
+    },
+    {
+      "image": "04.jpg",
+      "expected": "cabin in a forest",
+      "predictions": [
+        {
+          "label": "cabin in a forest",
+          "cosine_similarity": 0.3299481272697449
+        },
+        {
+          "label": "mountain landscape",
+          "cosine_similarity": 0.2593114376068115
+        },
+        {
+          "label": "farm",
+          "cosine_similarity": 0.24830688536167145
+        },
+        {
+          "label": "forest",
+          "cosine_similarity": 0.22439604997634888
+        },
+        {
+          "label": "field at sunset",
+          "cosine_similarity": 0.21835562586784363
+        }
+      ],
+      "correct": true,
+      "seconds": 0.0638591449969681
+    },
+    {
+      "image": "05.jpg",
+      "expected": "clock",
+      "predictions": [
+        {
+          "label": "clock",
+          "cosine_similarity": 0.342691034078598
+        },
+        {
+          "label": "coffee",
+          "cosine_similarity": 0.16917233169078827
+        },
+        {
+          "label": "bedroom",
+          "cosine_similarity": 0.15405413508415222
+        },
+        {
+          "label": "train",
+          "cosine_similarity": 0.1516057550907135
+        },
+        {
+          "label": "bicycle",
+          "cosine_similarity": 0.15034210681915283
+        }
+      ],
+      "correct": true,
+      "seconds": 0.06582501400407637
+    },
+    {
+      "image": "06.jpg",
+      "expected": "field at sunset",
+      "predictions": [
+        {
+          "label": "field at sunset",
+          "cosine_similarity": 0.3439503610134125
+        },
+        {
+          "label": "farm",
+          "cosine_similarity": 0.28378087282180786
+        },
+        {
+          "label": "sunlit grass",
+          "cosine_similarity": 0.2262314110994339
+        },
+        {
+          "label": "forest",
+          "cosine_similarity": 0.20380368828773499
+        },
+        {
+          "label": "desert",
+          "cosine_similarity": 0.176607146859169
+        }
+      ],
+      "correct": true,
+      "seconds": 0.06531480500416365
+    },
+    {
+      "image": "07.jpg",
+      "expected": "sunlit grass",
+      "predictions": [
+        {
+          "label": "sunlit grass",
+          "cosine_similarity": 0.336190789937973
+        },
+        {
+          "label": "field at sunset",
+          "cosine_similarity": 0.33287155628204346
+        },
+        {
+          "label": "forest",
+          "cosine_similarity": 0.2284832000732422
+        },
+        {
+          "label": "farm",
+          "cosine_similarity": 0.20027251541614532
+        },
+        {
+          "label": "formal garden",
+          "cosine_similarity": 0.18050992488861084
+        }
+      ],
+      "correct": true,
+      "seconds": 0.06449842799338512
+    },
+    {
+      "image": "08.jpg",
+      "expected": "wooden wall with plants",
+      "predictions": [
+        {
+          "label": "wooden wall with plants",
+          "cosine_similarity": 0.32498878240585327
+        },
+        {
+          "label": "forest",
+          "cosine_similarity": 0.18712380528450012
+        },
+        {
+          "label": "painting",
+          "cosine_similarity": 0.16592785716056824
+        },
+        {
+          "label": "cabin in a forest",
+          "cosine_similarity": 0.16321510076522827
+        },
+        {
+          "label": "tennis court",
+          "cosine_similarity": 0.16163741052150726
+        }
+      ],
+      "correct": true,
+      "seconds": 0.06785997399856569
+    },
+    {
+      "image": "09.jpg",
+      "expected": "Eiffel Tower",
+      "predictions": [
+        {
+          "label": "Eiffel Tower",
+          "cosine_similarity": 0.30706608295440674
+        },
+        {
+          "label": "skyscrapers",
+          "cosine_similarity": 0.16905555129051208
+        },
+        {
+          "label": "shopping street",
+          "cosine_similarity": 0.1618645042181015
+        },
+        {
+          "label": "snowy landscape",
+          "cosine_similarity": 0.14334580302238464
+        },
+        {
+          "label": "factory",
+          "cosine_similarity": 0.13941779732704163
+        }
+      ],
+      "correct": true,
+      "seconds": 0.06692219000251498
+    },
+    {
+      "image": "10.jpg",
+      "expected": "rocky coastline",
+      "predictions": [
+        {
+          "label": "rocky coastline",
+          "cosine_similarity": 0.2610587477684021
+        },
+        {
+          "label": "people on a seaside cliff",
+          "cosine_similarity": 0.2368776798248291
+        },
+        {
+          "label": "mountain landscape",
+          "cosine_similarity": 0.22542501986026764
+        },
+        {
+          "label": "beach",
+          "cosine_similarity": 0.2021840512752533
+        },
+        {
+          "label": "lake",
+          "cosine_similarity": 0.1572093516588211
+        }
+      ],
+      "correct": true,
+      "seconds": 0.06762466199870687
+    },
+    {
+      "image": "11.jpg",
+      "expected": "skyscrapers",
+      "predictions": [
+        {
+          "label": "skyscrapers",
+          "cosine_similarity": 0.35835033655166626
+        },
+        {
+          "label": "office",
+          "cosine_similarity": 0.24965323507785797
+        },
+        {
+          "label": "factory",
+          "cosine_similarity": 0.18199852108955383
+        },
+        {
+          "label": "document",
+          "cosine_similarity": 0.17858092486858368
+        },
+        {
+          "label": "shopping street",
+          "cosine_similarity": 0.1779097318649292
+        }
+      ],
+      "correct": true,
+      "seconds": 0.06795922099991003
+    },
+    {
+      "image": "12.jpg",
+      "expected": "hot spring",
+      "predictions": [
+        {
+          "label": "hot spring",
+          "cosine_similarity": 0.3154391050338745
+        },
+        {
+          "label": "people on a seaside cliff",
+          "cosine_similarity": 0.2177499532699585
+        },
+        {
+          "label": "lake",
+          "cosine_similarity": 0.21687594056129456
+        },
+        {
+          "label": "crowd",
+          "cosine_similarity": 0.20450085401535034
+        },
+        {
+          "label": "indoor swimming pool",
+          "cosine_similarity": 0.19246163964271545
+        }
+      ],
+      "correct": true,
+      "seconds": 0.06720909899740946
+    },
+    {
+      "image": "13.jpg",
+      "expected": "suspension bridge",
+      "predictions": [
+        {
+          "label": "suspension bridge",
+          "cosine_similarity": 0.32455259561538696
+        },
+        {
+          "label": "Eiffel Tower",
+          "cosine_similarity": 0.20242294669151306
+        },
+        {
+          "label": "skyscrapers",
+          "cosine_similarity": 0.1880456805229187
+        },
+        {
+          "label": "boat",
+          "cosine_similarity": 0.18638630211353302
+        },
+        {
+          "label": "bicycle",
+          "cosine_similarity": 0.17716403305530548
+        }
+      ],
+      "correct": true,
+      "seconds": 0.0672013049988891
+    },
+    {
+      "image": "14.jpg",
+      "expected": "mountain landscape",
+      "predictions": [
+        {
+          "label": "mountain landscape",
+          "cosine_similarity": 0.31479161977767944
+        },
+        {
+          "label": "rocky coastline",
+          "cosine_similarity": 0.19742150604724884
+        },
+        {
+          "label": "people on a seaside cliff",
+          "cosine_similarity": 0.17449218034744263
+        },
+        {
+          "label": "snowy landscape",
+          "cosine_similarity": 0.15286722779273987
+        },
+        {
+          "label": "crowd",
+          "cosine_similarity": 0.14950615167617798
+        }
+      ],
+      "correct": true,
+      "seconds": 0.06792351399781182
+    },
+    {
+      "image": "15.jpg",
+      "expected": "formal garden",
+      "predictions": [
+        {
+          "label": "person in a vehicle",
+          "cosine_similarity": 0.25580915808677673
+        },
+        {
+          "label": "tennis court",
+          "cosine_similarity": 0.24566541612148285
+        },
+        {
+          "label": "sports stadium",
+          "cosine_similarity": 0.23823295533657074
+        },
+        {
+          "label": "formal garden",
+          "cosine_similarity": 0.21817748248577118
+        },
+        {
+          "label": "sunlit grass",
+          "cosine_similarity": 0.19108015298843384
+        }
+      ],
+      "correct": false,
+      "seconds": 0.06837433300097473
+    },
+    {
+      "image": "16.jpg",
+      "expected": "chair by a window",
+      "predictions": [
+        {
+          "label": "chair by a window",
+          "cosine_similarity": 0.38167598843574524
+        },
+        {
+          "label": "cabin in a forest",
+          "cosine_similarity": 0.22075435519218445
+        },
+        {
+          "label": "bedroom",
+          "cosine_similarity": 0.20539942383766174
+        },
+        {
+          "label": "painting",
+          "cosine_similarity": 0.19068670272827148
+        },
+        {
+          "label": "wooden wall with plants",
+          "cosine_similarity": 0.18281114101409912
+        }
+      ],
+      "correct": true,
+      "seconds": 0.06513255099707749
+    },
+    {
+      "image": "17.jpg",
+      "expected": "audio mixing console",
+      "predictions": [
+        {
+          "label": "audio mixing console",
+          "cosine_similarity": 0.318652480840683
+        },
+        {
+          "label": "concert",
+          "cosine_similarity": 0.2278197705745697
+        },
+        {
+          "label": "screenshot",
+          "cosine_similarity": 0.18473772704601288
+        },
+        {
+          "label": "factory",
+          "cosine_similarity": 0.18273207545280457
+        },
+        {
+          "label": "office",
+          "cosine_similarity": 0.1687551736831665
+        }
+      ],
+      "correct": true,
+      "seconds": 0.06184835100430064
+    },
+    {
+      "image": "18.jpg",
+      "expected": "sports stadium",
+      "predictions": [
+        {
+          "label": "sports stadium",
+          "cosine_similarity": 0.3058525323867798
+        },
+        {
+          "label": "tennis court",
+          "cosine_similarity": 0.24432283639907837
+        },
+        {
+          "label": "screenshot",
+          "cosine_similarity": 0.19641850888729095
+        },
+        {
+          "label": "field at sunset",
+          "cosine_similarity": 0.183010995388031
+        },
+        {
+          "label": "indoor swimming pool",
+          "cosine_similarity": 0.18233013153076172
+        }
+      ],
+      "correct": true,
+      "seconds": 0.06271406999439932
+    },
+    {
+      "image": "19.jpg",
+      "expected": "people on a seaside cliff",
+      "predictions": [
+        {
+          "label": "people on a seaside cliff",
+          "cosine_similarity": 0.34619879722595215
+        },
+        {
+          "label": "rocky coastline",
+          "cosine_similarity": 0.23672819137573242
+        },
+        {
+          "label": "beach",
+          "cosine_similarity": 0.231744647026062
+        },
+        {
+          "label": "snowy landscape",
+          "cosine_similarity": 0.19205495715141296
+        },
+        {
+          "label": "lake",
+          "cosine_similarity": 0.1801670789718628
+        }
+      ],
+      "correct": true,
+      "seconds": 0.059833268001966644
+    },
+    {
+      "image": "20.jpg",
+      "expected": "mountain landscape",
+      "predictions": [
+        {
+          "label": "mountain landscape",
+          "cosine_similarity": 0.2998616695404053
+        },
+        {
+          "label": "field at sunset",
+          "cosine_similarity": 0.23962722718715668
+        },
+        {
+          "label": "forest",
+          "cosine_similarity": 0.2271905541419983
+        },
+        {
+          "label": "cabin in a forest",
+          "cosine_similarity": 0.22217518091201782
+        },
+        {
+          "label": "rocky coastline",
+          "cosine_similarity": 0.2212168425321579
+        }
+      ],
+      "correct": true,
+      "seconds": 0.060259550002228934
+    }
+  ],
+  "candidate_labels": [
+    "car interior",
+    "flowers",
+    "person in a vehicle",
+    "cabin in a forest",
+    "clock",
+    "field at sunset",
+    "sunlit grass",
+    "wooden wall with plants",
+    "Eiffel Tower",
+    "rocky coastline",
+    "skyscrapers",
+    "hot spring",
+    "suspension bridge",
+    "mountain landscape",
+    "formal garden",
+    "chair by a window",
+    "audio mixing console",
+    "sports stadium",
+    "people on a seaside cliff",
+    "cat",
+    "dog",
+    "bird",
+    "horse",
+    "insect",
+    "food on a plate",
+    "coffee",
+    "kitchen",
+    "bedroom",
+    "office",
+    "library",
+    "shopping street",
+    "train",
+    "airplane",
+    "boat",
+    "bicycle",
+    "desert",
+    "waterfall",
+    "snowy landscape",
+    "beach",
+    "painting",
+    "screenshot",
+    "document",
+    "concert",
+    "indoor swimming pool",
+    "factory",
+    "farm",
+    "crowd",
+    "forest",
+    "lake",
+    "tennis court"
+  ],
+  "top1": 0.95,
+  "top5": 1.0,
+  "prompt_template": "This is a photo of {label}.",
+  "dtype": "float32"
+}

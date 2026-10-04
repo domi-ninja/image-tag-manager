@@ -1,0 +1,22 @@
+[
+  {
+    "label": "audio equipment",
+    "cosine_similarity": 0.28757813572883606
+  },
+  {
+    "label": "food",
+    "cosine_similarity": 0.11681441962718964
+  },
+  {
+    "label": "vehicle",
+    "cosine_similarity": 0.11468218266963959
+  },
+  {
+    "label": "animal",
+    "cosine_similarity": 0.11153965443372726
+  },
+  {
+    "label": "landscape",
+    "cosine_similarity": 0.08250989764928818
+  }
+]

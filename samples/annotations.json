@@ -1,0 +1,26 @@
+{
+  "method": "Assistant visual inspection before any local model inference. All 20 random draws retained. Descriptions are broad visual references, not exhaustive captions. No model-generated labels used.",
+  "images": [
+    {"index":1,"description":"Vintage car interior, dashboard and steering wheel","required":["car interior","steering wheel"],"category":"car interior"},
+    {"index":2,"description":"Pink and white blossoms on tree branches","required":["flowers","branches"],"category":"flowers"},
+    {"index":3,"description":"Woman viewed through the window of a vehicle","required":["woman","vehicle window"],"category":"person in a vehicle"},
+    {"index":4,"description":"Small wooden cabin beside a forest and hills","required":["cabin","forest"],"category":"cabin in a forest"},
+    {"index":5,"description":"Close-up black and white photograph of an analog clock","required":["analog clock"],"category":"clock"},
+    {"index":6,"description":"Grassy field with trees beneath a sunset sky","required":["field","sunset"],"category":"field at sunset"},
+    {"index":7,"description":"Low view of grass with blurred trees and sunlight","required":["grass","sunlight"],"category":"sunlit grass"},
+    {"index":8,"description":"Weathered horizontal wooden boards with climbing vines","required":["wooden boards","vines"],"category":"wooden wall with plants"},
+    {"index":9,"description":"Eiffel Tower with nearby city buildings and bare trees","required":["Eiffel Tower"],"category":"Eiffel Tower"},
+    {"index":10,"description":"Rocky coast with green vegetation and the sea","required":["coast","sea"],"category":"rocky coastline"},
+    {"index":11,"description":"Looking upward between several glass skyscrapers","required":["skyscrapers","upward view"],"category":"skyscrapers"},
+    {"index":12,"description":"People bathing in a steaming outdoor pool surrounded by rocks","required":["outdoor pool","people","steam"],"category":"hot spring"},
+    {"index":13,"description":"View along the walkway of a suspension bridge","required":["suspension bridge"],"category":"suspension bridge"},
+    {"index":14,"description":"Rugged mountain peaks and valleys extending into the distance","required":["mountains"],"category":"mountain landscape"},
+    {"index":15,"description":"Formal green lawn with geometric paths and a small car on the foreground road","required":["lawn","car"],"category":"formal garden"},
+    {"index":16,"description":"Wooden chair in front of a large window with curtains","required":["chair","window"],"category":"chair by a window"},
+    {"index":17,"description":"Hands operating an audio mixing console","required":["hands","audio mixing console"],"category":"audio mixing console"},
+    {"index":18,"description":"Aerial view of an empty sports stadium with a green striped field","required":["stadium","green field"],"category":"sports stadium"},
+    {"index":19,"description":"People on a pale rocky cliff overlooking a blue sea","required":["people","cliff","sea"],"category":"people on a seaside cliff"},
+    {"index":20,"description":"Steep mountain cliffs and a forested valley in warm sunset light","required":["mountain cliffs","valley"],"category":"mountain landscape"}
+  ],
+  "candidate_labels": ["car interior","flowers","person in a vehicle","cabin in a forest","clock","field at sunset","sunlit grass","wooden wall with plants","Eiffel Tower","rocky coastline","skyscrapers","hot spring","suspension bridge","mountain landscape","formal garden","chair by a window","audio mixing console","sports stadium","people on a seaside cliff","cat","dog","bird","horse","insect","food on a plate","coffee","kitchen","bedroom","office","library","shopping street","train","airplane","boat","bicycle","desert","waterfall","snowy landscape","beach","painting","screenshot","document","concert","indoor swimming pool","factory","farm","crowd","forest","lake","tennis court"]
+}

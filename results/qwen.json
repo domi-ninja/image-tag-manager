@@ -1,0 +1,348 @@
+{
+  "model": "qwen",
+  "device": "cpu",
+  "threads": 8,
+  "load_seconds": 0.3243249060033122,
+  "median_seconds": 12.856217467498936,
+  "annotations_sha256": "acf5838924921f56d8a909431f534e3cd5f3c7e4f61ac1b3ba51148a2d99b7b9",
+  "results": [
+    {
+      "image": "01.jpg",
+      "raw": "{\n  \"tags\": [\n    \"car interior\",\n    \"steering wheel\",\n    \"dashboard\",\n    \"green paint\",\n    \"forest view\"\n  ],\n  \"caption\": \"The interior of a vintage car with a green dashboard and a worn steering wheel, viewed from the driver's seat with a forest in the background.\"\n}",
+      "parsed": {
+        "tags": [
+          "car interior",
+          "steering wheel",
+          "dashboard",
+          "green paint",
+          "forest view"
+        ],
+        "caption": "The interior of a vintage car with a green dashboard and a worn steering wheel, viewed from the driver's seat with a forest in the background."
+      },
+      "seconds": 13.913433163994341,
+      "generated_tokens": 69
+    },
+    {
+      "image": "02.jpg",
+      "raw": "{\n  \"tags\": [\n    \"cherry blossoms\",\n    \"spring flowers\",\n    \"blooming tree\",\n    \"close-up\",\n    \"soft focus\"\n  ],\n  \"caption\": \"A close-up of delicate cherry blossoms in full bloom, with soft purple and white petals against a blurred background.\"\n}",
+      "parsed": {
+        "tags": [
+          "cherry blossoms",
+          "spring flowers",
+          "blooming tree",
+          "close-up",
+          "soft focus"
+        ],
+        "caption": "A close-up of delicate cherry blossoms in full bloom, with soft purple and white petals against a blurred background."
+      },
+      "seconds": 13.531556878995616,
+      "generated_tokens": 66
+    },
+    {
+      "image": "03.jpg",
+      "raw": "{\n  \"tags\": [\n    \"woman\",\n    \"bride\",\n    \"wedding\",\n    \"car\",\n    \"window\",\n    \"flowers\",\n    \"veil\",\n    \"earring\"\n  ],\n  \"caption\": \"A bride is seen through the window of a vintage car, holding a bouquet of flowers.\"\n}",
+      "parsed": {
+        "tags": [
+          "woman",
+          "bride",
+          "wedding",
+          "car",
+          "window",
+          "flowers",
+          "veil",
+          "earring"
+        ],
+        "caption": "A bride is seen through the window of a vintage car, holding a bouquet of flowers."
+      },
+      "seconds": 13.699183914999594,
+      "generated_tokens": 69
+    },
+    {
+      "image": "04.jpg",
+      "raw": "```json\n{\n  \"tags\": [\n    \"wooden shed\",\n    \"forest\",\n    \"mountain\",\n    \"rural\",\n    \"natural landscape\"\n  ],\n  \"caption\": \"A wooden shed stands in a forested valley, with rolling hills in the background.\"\n}\n```",
+      "parsed": {
+        "tags": [
+          "wooden shed",
+          "forest",
+          "mountain",
+          "rural",
+          "natural landscape"
+        ],
+        "caption": "A wooden shed stands in a forested valley, with rolling hills in the background."
+      },
+      "seconds": 12.833212683995953,
+      "generated_tokens": 61
+    },
+    {
+      "image": "05.jpg",
+      "raw": "```json\n{\n  \"tags\": [\n    \"clock\",\n    \"black and white\",\n    \"time\",\n    \"antique\",\n    \"round\"\n  ],\n  \"caption\": \"A close-up of a vintage analog clock showing the time as approximately 12:35.\"\n}\n```",
+      "parsed": {
+        "tags": [
+          "clock",
+          "black and white",
+          "time",
+          "antique",
+          "round"
+        ],
+        "caption": "A close-up of a vintage analog clock showing the time as approximately 12:35."
+      },
+      "seconds": 12.44638839000254,
+      "generated_tokens": 62
+    },
+    {
+      "image": "06.jpg",
+      "raw": "```json\n{\n  \"tags\": [\n    \"field\",\n    \"grass\",\n    \"trees\",\n    \"sunrise\",\n    \"sky\"\n  ],\n  \"caption\": \"A serene field at sunrise with golden light illuminating the sky and trees.\"\n}\n```",
+      "parsed": {
+        "tags": [
+          "field",
+          "grass",
+          "trees",
+          "sunrise",
+          "sky"
+        ],
+        "caption": "A serene field at sunrise with golden light illuminating the sky and trees."
+      },
+      "seconds": 11.059153112000786,
+      "generated_tokens": 55
+    },
+    {
+      "image": "07.jpg",
+      "raw": "```json\n{\n  \"tags\": [\n    \"sunrise\",\n    \"grass\",\n    \"trees\",\n    \"bokeh\",\n    \"outdoor\"\n  ],\n  \"caption\": \"A close-up of grass in the foreground with a bright sunrise and blurred trees in the background.\"\n}\n```",
+      "parsed": {
+        "tags": [
+          "sunrise",
+          "grass",
+          "trees",
+          "bokeh",
+          "outdoor"
+        ],
+        "caption": "A close-up of grass in the foreground with a bright sunrise and blurred trees in the background."
+      },
+      "seconds": 12.570067988002847,
+      "generated_tokens": 61
+    },
+    {
+      "image": "08.jpg",
+      "raw": "```json\n{\n  \"tags\": [\n    \"wooden floor\",\n    \"leaves\",\n    \"fallen\",\n    \"nature\",\n    \"autumn\"\n  ],\n  \"caption\": \"A weathered wooden floor covered with scattered autumn leaves and small green plants.\"\n}\n```",
+      "parsed": {
+        "tags": [
+          "wooden floor",
+          "leaves",
+          "fallen",
+          "nature",
+          "autumn"
+        ],
+        "caption": "A weathered wooden floor covered with scattered autumn leaves and small green plants."
+      },
+      "seconds": 11.969772996999382,
+      "generated_tokens": 59
+    },
+    {
+      "image": "09.jpg",
+      "raw": "```json\n{\n  \"tags\": [\n    \"Eiffel Tower\",\n    \"Paris\",\n    \"cityscape\",\n    \"building\",\n    \"tree\",\n    \"overcast\",\n    \"foggy\"\n  ],\n  \"caption\": \"A foggy cityscape featuring the Eiffel Tower and a grand building in Paris.\"\n}\n```",
+      "parsed": {
+        "tags": [
+          "Eiffel Tower",
+          "Paris",
+          "cityscape",
+          "building",
+          "tree",
+          "overcast",
+          "foggy"
+        ],
+        "caption": "A foggy cityscape featuring the Eiffel Tower and a grand building in Paris."
+      },
+      "seconds": 13.904731426999206,
+      "generated_tokens": 72
+    },
+    {
+      "image": "10.jpg",
+      "raw": "```json\n{\n  \"tags\": [\n    \"coastal landscape\",\n    \"mountainous terrain\",\n    \"sea view\",\n    \"green hills\",\n    \"clear sky\"\n  ],\n  \"caption\": \"A scenic coastal view featuring lush green hills and a calm sea under a bright sky.\"\n}\n```",
+      "parsed": {
+        "tags": [
+          "coastal landscape",
+          "mountainous terrain",
+          "sea view",
+          "green hills",
+          "clear sky"
+        ],
+        "caption": "A scenic coastal view featuring lush green hills and a calm sea under a bright sky."
+      },
+      "seconds": 12.351879344001645,
+      "generated_tokens": 65
+    },
+    {
+      "image": "11.jpg",
+      "raw": "```json\n{\n  \"tags\": [\n    \"skyscrapers\",\n    \"urban landscape\",\n    \"modern architecture\",\n    \"low angle\",\n    \"glass buildings\"\n  ],\n  \"caption\": \"A low-angle view of several modern skyscrapers against a pale sky.\"\n}\n```",
+      "parsed": {
+        "tags": [
+          "skyscrapers",
+          "urban landscape",
+          "modern architecture",
+          "low angle",
+          "glass buildings"
+        ],
+        "caption": "A low-angle view of several modern skyscrapers against a pale sky."
+      },
+      "seconds": 11.633912122000766,
+      "generated_tokens": 61
+    },
+    {
+      "image": "12.jpg",
+      "raw": "```json\n{\n  \"tags\": [\n    \"people\",\n    \"bathing\",\n    \"thermal spring\",\n    \"steam\",\n    \"lakeside\",\n    \"natural landscape\",\n    \"outdoor\",\n    \"blue water\"\n  ],\n  \"caption\": \"People enjoy a hot spring with steam rising from the water.\"\n}\n```",
+      "parsed": {
+        "tags": [
+          "people",
+          "bathing",
+          "thermal spring",
+          "steam",
+          "lakeside",
+          "natural landscape",
+          "outdoor",
+          "blue water"
+        ],
+        "caption": "People enjoy a hot spring with steam rising from the water."
+      },
+      "seconds": 13.594801289000316,
+      "generated_tokens": 70
+    },
+    {
+      "image": "13.jpg",
+      "raw": "```json\n{\n  \"tags\": [\n    \"bridge\",\n    \"suspension\",\n    \"cityscape\",\n    \"walkway\",\n    \"people\",\n    \"sky\",\n    \"flag\",\n    \"water\"\n  ],\n  \"caption\": \"A view of the Brooklyn Bridge with pedestrians on the walkway and a city skyline in the background.\"\n}\n```",
+      "parsed": {
+        "tags": [
+          "bridge",
+          "suspension",
+          "cityscape",
+          "walkway",
+          "people",
+          "sky",
+          "flag",
+          "water"
+        ],
+        "caption": "A view of the Brooklyn Bridge with pedestrians on the walkway and a city skyline in the background."
+      },
+      "seconds": 14.772008375999576,
+      "generated_tokens": 75
+    },
+    {
+      "image": "14.jpg",
+      "raw": "```json\n{\n  \"tags\": [\n    \"mountain landscape\",\n    \"rocky cliffs\",\n    \"green slopes\",\n    \"hills\",\n    \"cloudy sky\"\n  ],\n  \"caption\": \"A panoramic view of rugged mountain peaks and rolling hills under a cloudy sky.\"\n}\n```",
+      "parsed": {
+        "tags": [
+          "mountain landscape",
+          "rocky cliffs",
+          "green slopes",
+          "hills",
+          "cloudy sky"
+        ],
+        "caption": "A panoramic view of rugged mountain peaks and rolling hills under a cloudy sky."
+      },
+      "seconds": 12.87922225100192,
+      "generated_tokens": 62
+    },
+    {
+      "image": "15.jpg",
+      "raw": "{\n  \"tags\": [\n    \"black car\",\n    \"person\",\n    \"green lawn\",\n    \"park\",\n    \"road\"\n  ],\n  \"caption\": \"A person stands next to a black car on a road in a large green park with neatly arranged grass and trees.\"\n}",
+      "parsed": {
+        "tags": [
+          "black car",
+          "person",
+          "green lawn",
+          "park",
+          "road"
+        ],
+        "caption": "A person stands next to a black car on a road in a large green park with neatly arranged grass and trees."
+      },
+      "seconds": 12.568100427997706,
+      "generated_tokens": 60
+    },
+    {
+      "image": "16.jpg",
+      "raw": "{\n  \"tags\": [\n    \"chair\",\n    \"window\",\n    \"curtain\",\n    \"wooden frame\",\n    \"outdoor view\"\n  ],\n  \"caption\": \"A wooden chair sits in front of a window with a white curtain, looking out at a serene outdoor scene.\"\n}",
+      "parsed": {
+        "tags": [
+          "chair",
+          "window",
+          "curtain",
+          "wooden frame",
+          "outdoor view"
+        ],
+        "caption": "A wooden chair sits in front of a window with a white curtain, looking out at a serene outdoor scene."
+      },
+      "seconds": 13.261713191997842,
+      "generated_tokens": 62
+    },
+    {
+      "image": "17.jpg",
+      "raw": "{\n  \"tags\": [\n    \"hand\",\n    \"mixing console\",\n    \"audio equipment\",\n    \"control panel\",\n    \"music studio\",\n    \"close-up\",\n    \"professional\",\n    \"adjusting\"\n  ],\n  \"caption\": \"A close-up of a hand adjusting a control knob on a mixing console in a music studio.\"\n}",
+      "parsed": {
+        "tags": [
+          "hand",
+          "mixing console",
+          "audio equipment",
+          "control panel",
+          "music studio",
+          "close-up",
+          "professional",
+          "adjusting"
+        ],
+        "caption": "A close-up of a hand adjusting a control knob on a mixing console in a music studio."
+      },
+      "seconds": 14.3055384649997,
+      "generated_tokens": 73
+    },
+    {
+      "image": "18.jpg",
+      "raw": "{\n  \"tags\": [\n    \"football field\",\n    \"stadium\",\n    \"green grass\",\n    \"aerial view\",\n    \"sports venue\"\n  ],\n  \"caption\": \"An aerial view of a football field with a striped pattern on the grass, surrounded by stadium seating.\"\n}",
+      "parsed": {
+        "tags": [
+          "football field",
+          "stadium",
+          "green grass",
+          "aerial view",
+          "sports venue"
+        ],
+        "caption": "An aerial view of a football field with a striped pattern on the grass, surrounded by stadium seating."
+      },
+      "seconds": 12.341764105993207,
+      "generated_tokens": 61
+    },
+    {
+      "image": "19.jpg",
+      "raw": "```json\n{\n  \"tags\": [\n    \"sea\",\n    \"sky\",\n    \"people\",\n    \"beach\",\n    \"dawn\"\n  ],\n  \"caption\": \"People sit on a white cliff overlooking the sea at dawn.\"\n}\n```",
+      "parsed": {
+        "tags": [
+          "sea",
+          "sky",
+          "people",
+          "beach",
+          "dawn"
+        ],
+        "caption": "People sit on a white cliff overlooking the sea at dawn."
+      },
+      "seconds": 10.659824763002689,
+      "generated_tokens": 53
+    },
+    {
+      "image": "20.jpg",
+      "raw": "```json\n{\n  \"tags\": [\n    \"mountain landscape\",\n    \"sunrise\",\n    \"valley\",\n    \"rock face\",\n    \"tree\"\n  ],\n  \"caption\": \"A majestic mountain valley at sunrise, with sunlight illuminating the rugged cliffs and a lone tree in the foreground.\"\n}\n```",
+      "parsed": {
+        "tags": [
+          "mountain landscape",
+          "sunrise",
+          "valley",
+          "rock face",
+          "tree"
+        ],
+        "caption": "A majestic mountain valley at sunrise, with sunlight illuminating the rugged cliffs and a lone tree in the foreground."
+      },
+      "seconds": 13.758743300997594,
+      "generated_tokens": 66
+    }
+  ],
+  "prompt": "Identify the main visible subjects and scene. Return only a JSON object with \"tags\": an array of 5 to 8 short descriptive tags, and \"caption\": one concise sentence. Describe only what is visibly supported. Avoid guessing exact locations, species, brands, or identities unless unmistakable.",
+  "dtype": "bfloat16",
+  "max_new_tokens": 160,
+  "do_sample": false
+}

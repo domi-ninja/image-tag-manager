@@ -380,3 +380,65 @@ test('tag clicks appear in search and hashtag autocomplete supports keyboard, sp
   await expect(search).toHaveValue('#dashboard');
   await expect(page.getByRole('button', { name: /^Open .*jpg$/ })).toHaveCount(1);
 });
+
+test('thumbnail size follows Ctrl shortcuts, stays bounded, and persists without page zoom', async ({
+  page,
+}) => {
+  const grid = page.getByLabel('Image grid', { exact: true });
+  const size = page.getByRole('group', { name: 'Thumbnail size', exact: true });
+  const width = () =>
+    grid
+      .locator('article')
+      .first()
+      .evaluate((element) => element.getBoundingClientRect().width);
+  await expect(size).toContainText('320px');
+  expect(await width()).toBe(320);
+  const fontSize = await page
+    .locator('html')
+    .evaluate((element) => getComputedStyle(element).fontSize);
+  await page.keyboard.press('Control+=');
+  await expect(size).toContainText('360px');
+  expect(await width()).toBe(360);
+  await page.keyboard.press('Control+-');
+  await expect(size).toContainText('320px');
+  await grid.locator('article').first().hover();
+  await page.keyboard.down('Control');
+  await page.mouse.wheel(0, -100);
+  await page.keyboard.up('Control');
+  await expect(size).toContainText('360px');
+  expect(await width()).toBe(360);
+  const cancelled = await grid.evaluate((element) => {
+    const event = new WheelEvent('wheel', {
+      deltaY: 100,
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    element.dispatchEvent(event);
+    return event.defaultPrevented;
+  });
+  expect(cancelled).toBe(true);
+  await expect(size).toContainText('320px');
+  await grid.dispatchEvent('wheel', { deltaY: -100, ctrlKey: false });
+  await expect(size).toContainText('320px');
+  for (let n = 0; n < 12; n++) await page.keyboard.press('Control+=');
+  await expect(size).toContainText('640px');
+  await expect(page.getByRole('button', { name: 'Larger thumbnails', exact: true })).toBeDisabled();
+  expect(await page.locator('html').evaluate((element) => getComputedStyle(element).fontSize)).toBe(
+    fontSize,
+  );
+  await page.setViewportSize({ width: 850, height: 650 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
+  await page.reload();
+  await expect(size).toContainText('640px');
+  for (let n = 0; n < 15; n++) await page.keyboard.press('Control+-');
+  await expect(size).toContainText('160px');
+  await expect(
+    page.getByRole('button', { name: 'Smaller thumbnails', exact: true }),
+  ).toBeDisabled();
+  await page.getByRole('button', { name: 'Larger thumbnails', exact: true }).click();
+  await expect(size).toContainText('200px');
+  await page.screenshot({ path: 'test-results/thumbnail-size.png' });
+});

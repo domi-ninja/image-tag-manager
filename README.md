@@ -46,6 +46,10 @@ macOS has not been tested.
    rename or merge tags, see image-use counts, filter unused tags, and purge orphans.
    Only unused tags can be deleted; purge never removes an image's assigned tags.
 
+Resize thumbnails with **Ctrl+scroll** over the image grid or **Ctrl+plus/minus**.
+The footer has matching buttons and shows the width. Sizes range from 160 to 640
+pixels and are remembered on this device. Ordinary scrolling and text size stay unchanged.
+
 Each nested directory below a configured folder contributes its name as a tag.
 For example, with a root of `Photos`, `Photos/Trips/Alps/image.jpg` gets `trips`
 and `alps`. The configured root and its parents do not become tags. Folder and
@@ -154,7 +158,7 @@ the resulting index. It does not call Python or a hosted model API.
 ### Verified in this workspace
 
 - Linux Debian installer built successfully, approximately 38 MB including the CPU runtime.
-- Fifteen Rust database tests, seven browser interaction tests, and a search parser test passed; TypeScript build
+- Fifteen Rust database tests, eight browser interaction tests, and a search parser test passed; TypeScript build
   and Rust clippy passed.
 - The native app migrated a 21-image test index, preserved legacy tags, and passed
   source tracking, usage count, rename/search, and orphan deletion checks. See

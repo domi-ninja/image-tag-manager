@@ -15,6 +15,8 @@ import {
   ChevronRight,
   X,
   LoaderCircle,
+  Minus,
+  Plus,
 } from 'lucide-react';
 import { api, type Filter, type Folder, type Photo } from './lib/api';
 import { ImageSearch } from './components/image-search';
@@ -26,6 +28,7 @@ import { Button } from './components/ui/button';
 import { Input, Textarea } from './components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from './components/ui/dialog';
 import { cn } from './lib/utils';
+import { useThumbnailSize } from './lib/use-thumbnail-size';
 import { useIndexUpdates } from './lib/use-index-updates';
 
 const initialFilter: Filter = { query: '', folderId: null, status: null, page: 0 };
@@ -40,6 +43,7 @@ export default function App() {
   const [folderEdit, setFolderEdit] = useState<Folder | null>(null);
   const [error, setError] = useState('');
   const [tagManager, setTagManager] = useState(false);
+  const thumbnails = useThumbnailSize(!selected && !folderEdit && !tagManager);
   const status = useQuery({ queryKey: ['status'], queryFn: api.status, refetchInterval: 1000 });
   useIndexUpdates(status.data);
   const busy = status.data?.busy ?? false;
@@ -319,7 +323,7 @@ export default function App() {
               </Button>
             </div>
           )}
-          <div className="min-h-0 flex-1 overflow-y-auto p-4 pt-0">
+          <div ref={thumbnails.galleryRef} className="min-h-0 flex-1 overflow-y-auto p-4 pt-0">
             {photos.isPending ? (
               <p role="status" className="py-4 text-muted-foreground">
                 Loading images…
@@ -354,7 +358,13 @@ export default function App() {
                 </Button>
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-4 min-[1100px]:grid-cols-3 min-[1450px]:grid-cols-4">
+              <div
+                aria-label="Image grid"
+                className="grid gap-4"
+                style={{
+                  gridTemplateColumns: `repeat(auto-fill, minmax(0, min(${thumbnails.size}px, 100%)))`,
+                }}
+              >
                 {photos.data.images.map((photo) => (
                   <PhotoCard
                     onError={setError}
@@ -368,6 +378,34 @@ export default function App() {
             )}
           </div>
           <footer className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t px-4 py-3">
+            <div
+              role="group"
+              aria-label="Thumbnail size"
+              className="flex items-center gap-2"
+              title="Resize thumbnails: Ctrl+scroll over images, or Ctrl+plus/minus"
+            >
+              <Button
+                variant="ghost"
+                className="px-2"
+                aria-label="Smaller thumbnails"
+                disabled={!thumbnails.canShrink}
+                onClick={() => thumbnails.resize(-1)}
+              >
+                <Minus aria-hidden />
+              </Button>
+              <span className="text-muted-foreground tabular-nums" aria-live="polite">
+                {thumbnails.size}px
+              </span>
+              <Button
+                variant="ghost"
+                className="px-2"
+                aria-label="Larger thumbnails"
+                disabled={!thumbnails.canGrow}
+                onClick={() => thumbnails.resize(1)}
+              >
+                <Plus aria-hidden />
+              </Button>
+            </div>
             <span className="tabular-nums">
               {total === 0
                 ? '0 images'

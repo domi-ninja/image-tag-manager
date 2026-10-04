@@ -26,6 +26,20 @@ script downloads the CPU build for the current platform. Supported runtime packa
 Windows x64, Linux x64, and macOS x64/arm64. Windows and Linux have CI build jobs;
 macOS has not been tested.
 
+## Install on Linux
+
+Run `./scripts/install-linux.sh` from this checkout after installing the build
+prerequisites above. It builds a release and installs Image Shelf for your current
+user, including the model runtime, icons, and an application-menu entry. No sudo
+is needed. To install an already-built release, use `./scripts/install-linux.sh --no-build`.
+
+Launch **Image Shelf** from your application menu or run `~/.local/bin/image-shelf`.
+Rerun the installer to update. The installed files live in
+`${XDG_DATA_HOME:-~/.local/share}/image-shelf-desktop`; the desktop entry and icons
+use the same data directory. Your indexed library, settings, and downloaded models
+remain in the separate `com.domi.imageshelf` data directory. The installed app does
+not depend on this checkout remaining in place.
+
 ## Use
 
 1. Add folders using the plus button. Subfolders are included automatically. Enabled

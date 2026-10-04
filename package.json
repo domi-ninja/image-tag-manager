@@ -23,6 +23,7 @@
     "@tauri-apps/plugin-dialog": "^2",
     "class-variance-authority": "^0.7",
     "clsx": "^2",
+    "cmdk": "^1.1.1",
     "lucide-react": "^0.468",
     "react": "^19",
     "react-dom": "^19",

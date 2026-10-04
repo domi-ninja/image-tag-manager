@@ -18,6 +18,7 @@ import {
   LoaderCircle,
 } from 'lucide-react';
 import { api, type Filter, type Folder, type Photo } from './lib/api';
+import { TagEditor } from './components/tag-editor';
 import { PhotoContextMenu } from './components/photo-context-menu';
 import { Button } from './components/ui/button';
 import { Input, Textarea } from './components/ui/input';
@@ -518,7 +519,8 @@ function PhotoDialog({
   onSave: () => Promise<void>;
 }) {
   const [contextError, setContextError] = useState('');
-  const [tags, setTags] = useState(photo.tags.join(', '));
+  const [tags, setTags] = useState(photo.tags);
+  const [tagQuery, setTagQuery] = useState('');
   const [caption, setCaption] = useState(photo.caption);
   const [category, setCategory] = useState(photo.category ?? '');
   const preview = useQuery({
@@ -529,7 +531,7 @@ function PhotoDialog({
   const save = useMutation({
     mutationFn: () =>
       api.savePhoto(photo.id, {
-        tags: tags.split(','),
+        tags: [...new Set([...tags, tagQuery.trim().toLowerCase()].filter(Boolean))],
         caption,
         category: category.trim() || null,
       }),
@@ -539,7 +541,9 @@ function PhotoDialog({
     },
   });
   const dirty =
-    tags !== photo.tags.join(', ') ||
+    tagQuery.trim() !== '' ||
+    tags.length !== photo.tags.length ||
+    tags.some((tag) => !photo.tags.includes(tag)) ||
     caption !== photo.caption ||
     category !== (photo.category ?? '');
   const [discard, setDiscard] = useState(false);
@@ -554,7 +558,17 @@ function PhotoDialog({
         if (!open) close();
       }}
     >
-      <DialogContent className="max-w-5xl">
+      <DialogContent
+        className="max-w-5xl"
+        onEscapeKeyDown={(event) => {
+          // Let an open tag dropdown consume Escape before the dialog closes.
+          if (
+            event.target instanceof HTMLElement &&
+            event.target.matches('[role="combobox"][aria-expanded="true"]')
+          )
+            event.preventDefault();
+        }}
+      >
         <DialogTitle className="pr-8 font-semibold">{photo.filename}</DialogTitle>
         <DialogDescription className="mt-2 break-all text-muted-foreground">
           {photo.path}
@@ -584,10 +598,12 @@ function PhotoDialog({
               save.mutate();
             }}
           >
-            <label className="block space-y-2">
-              <span>Tags (comma separated)</span>
-              <Textarea value={tags} onChange={(e) => setTags(e.target.value)} required />
-            </label>
+            <TagEditor
+              tags={tags}
+              onChange={setTags}
+              query={tagQuery}
+              onQueryChange={setTagQuery}
+            />
             <label className="block space-y-2">
               <span>Caption</span>
               <Textarea value={caption} onChange={(e) => setCaption(e.target.value)} />

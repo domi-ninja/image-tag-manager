@@ -112,7 +112,8 @@ test('search, edit tags, and search the edited index', async ({ page }) => {
   await page.getByRole('textbox', { name: 'Search images' }).fill('steering');
   await expect(page.getByRole('button', { name: /^Open .*jpg$/ })).toHaveCount(1);
   await page.getByRole('button', { name: 'Open 01.jpg' }).click();
-  await page.getByRole('textbox', { name: 'Tags (comma separated)' }).fill('car, road trip');
+  await page.getByRole('combobox', { name: 'Add tag' }).fill('road trip');
+  await page.getByRole('option', { name: 'Add "road trip"' }).click();
   await page.getByRole('button', { name: 'Save changes' }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await page.getByRole('textbox', { name: 'Search images' }).fill('road trip');
@@ -184,4 +185,52 @@ test('image context menu invokes native actions from cards and the enlarged prev
     JSON.stringify({ id: photo.id, action: 'copy_path' }),
   );
   await expect(page.getByRole('dialog')).toBeVisible();
+});
+
+test('tag editor suggests existing tags, creates tags with Enter, and removes tags without submitting', async ({
+  page,
+}) => {
+  const photo = fixtures[0];
+  const suggestion = fixtures
+    .flatMap((photo) => photo.tags)
+    .find((tag) => !photo.tags.includes(tag))!;
+  await page.getByRole('button', { name: `Open ${photo.filename}` }).click();
+  const input = page.getByRole('combobox', { name: 'Add tag' });
+  await input.fill(suggestion);
+  await page.getByRole('option', { name: suggestion, exact: true }).click();
+  await expect(
+    page.getByRole('button', { name: `Remove tag ${suggestion}`, exact: true }),
+  ).toBeVisible();
+  await input.fill('weekend memories');
+  await input.press('ArrowDown');
+  await input.press('Enter');
+  await expect(
+    page.getByRole('button', { name: 'Remove tag weekend memories', exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await input.fill('WEEKEND MEMORIES');
+  await expect(page.getByText('This tag is already added.')).toBeVisible();
+  await input.press('Escape');
+  await expect(input).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(page.getByText('Discard your unsaved changes?')).toHaveCount(0);
+  await input.clear();
+  await page.getByRole('button', { name: `Remove tag ${photo.tags[0]}`, exact: true }).click();
+  await expect(
+    page.getByRole('button', { name: `Remove tag ${photo.tags[0]}`, exact: true }),
+  ).toHaveCount(0);
+  await input.fill('week');
+  await page.screenshot({ path: 'test-results/tag-editor.png' });
+  await input.clear();
+  await page.getByRole('button', { name: 'Save changes' }).click();
+  await page.getByRole('button', { name: `Open ${photo.filename}` }).click();
+  await expect(
+    page.getByRole('button', { name: 'Remove tag weekend memories', exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: `Remove tag ${suggestion}`, exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: `Remove tag ${photo.tags[0]}`, exact: true }),
+  ).toHaveCount(0);
 });

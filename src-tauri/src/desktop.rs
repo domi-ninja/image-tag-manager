@@ -5,6 +5,8 @@ use crate::{
 };
 use std::sync::Arc;
 use tauri::{Manager, State};
+use tauri_plugin_clipboard_manager::ClipboardExt;
+use tauri_plugin_opener::OpenerExt;
 type AppState = Arc<Engine>;
 type Response<T> = Result<T, String>;
 fn err(e: impl std::fmt::Display) -> String {
@@ -89,6 +91,51 @@ async fn preview(s: State<'_, AppState>, id: i64) -> Response<String> {
     .await
     .map_err(err)?
 }
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum ImageAction {
+    CopyImage,
+    CopyPath,
+    Reveal,
+    Open,
+}
+
+#[tauri::command]
+async fn image_action(
+    app: tauri::AppHandle,
+    s: State<'_, AppState>,
+    id: i64,
+    action: ImageAction,
+) -> Response<()> {
+    let db = s.db.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let photo = db.photo(id).map_err(err)?;
+        if matches!(action, ImageAction::CopyPath) {
+            return app.clipboard().write_text(photo.path).map_err(err);
+        }
+        let path = std::path::Path::new(&photo.path);
+        if !path.is_file() {
+            return Err("Image could not be found. It may have moved.".into());
+        }
+        match action {
+            ImageAction::CopyImage => {
+                let pixels = inference::rgba(path).map_err(err)?;
+                let (width, height) = pixels.dimensions();
+                let image = tauri::image::Image::new_owned(pixels.into_raw(), width, height);
+                app.clipboard().write_image(&image).map_err(err)
+            }
+            ImageAction::Reveal => app.opener().reveal_item_in_dir(path).map_err(err),
+            ImageAction::Open => app
+                .opener()
+                .open_path(photo.path, None::<&str>)
+                .map_err(err),
+            ImageAction::CopyPath => unreachable!(),
+        }
+    })
+    .await
+    .map_err(err)?
+}
+
 pub fn run() {
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
@@ -98,6 +145,8 @@ pub fn run() {
             }
         }))
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_clipboard_manager::init())
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::Destroyed = event {
                 window.state::<AppState>().shutdown();
@@ -130,7 +179,8 @@ pub fn run() {
             retry,
             save_photo,
             thumbnail,
-            preview
+            preview,
+            image_action
         ])
         .build(tauri::generate_context!())
         .expect("Could not initialize Image Shelf");

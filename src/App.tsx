@@ -18,6 +18,7 @@ import {
   LoaderCircle,
 } from 'lucide-react';
 import { api, type Filter, type Folder, type Photo } from './lib/api';
+import { PhotoContextMenu } from './components/photo-context-menu';
 import { Button } from './components/ui/button';
 import { Input, Textarea } from './components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from './components/ui/dialog';
@@ -346,6 +347,7 @@ export default function App() {
               <div className="grid grid-cols-2 gap-4 min-[1100px]:grid-cols-3 min-[1450px]:grid-cols-4">
                 {photos.data.images.map((photo) => (
                   <PhotoCard
+                    onError={setError}
                     key={`${photo.id}-${photo.modified}`}
                     photo={photo}
                     onSelect={() => setSelected(photo)}
@@ -424,10 +426,12 @@ function PhotoCard({
   photo,
   onSelect,
   onTag,
+  onError,
 }: {
   photo: Photo;
   onSelect: () => void;
   onTag: (tag: string) => void;
+  onError: (error: string) => void;
 }) {
   const thumb = useQuery({
     queryKey: ['thumbnail', photo.id, photo.modified],
@@ -436,70 +440,72 @@ function PhotoCard({
     gcTime: 300000,
   });
   return (
-    <article className="min-w-0 overflow-hidden rounded-md border bg-white">
-      <button
-        onClick={onSelect}
-        className="block w-full text-left"
-        aria-label={`Open ${photo.filename}`}
-      >
-        <div className="grid aspect-[4/3] place-items-center bg-muted">
-          {thumb.data ? (
-            <img
-              src={thumb.data}
-              alt={photo.caption || photo.filename}
-              className="size-full object-cover"
-              loading="lazy"
-              width={360}
-              height={270}
-            />
-          ) : thumb.isError ? (
-            <ImageOff className="size-6 text-muted-foreground" />
-          ) : (
-            <span className="text-muted-foreground">Loading preview…</span>
-          )}
-        </div>
-        <div className="space-y-2 p-3">
-          <p className="truncate font-medium" title={photo.filename}>
-            {photo.filename}
-          </p>
-          {photo.caption ? (
-            <p className="line-clamp-2 min-h-10 text-muted-foreground">{photo.caption}</p>
-          ) : (
-            <p
-              className={cn(
-                'min-h-10',
-                photo.status === 'error' ? 'text-destructive' : 'text-muted-foreground',
-              )}
-            >
-              {photo.status === 'error'
-                ? 'Classification failed. Open to review.'
-                : 'Waiting for classification'}
+    <PhotoContextMenu photoId={photo.id} onError={onError}>
+      <article className="min-w-0 overflow-hidden rounded-md border bg-white">
+        <button
+          onClick={onSelect}
+          className="block w-full text-left"
+          aria-label={`Open ${photo.filename}`}
+        >
+          <div className="grid aspect-[4/3] place-items-center bg-muted">
+            {thumb.data ? (
+              <img
+                src={thumb.data}
+                alt={photo.caption || photo.filename}
+                className="size-full object-cover"
+                loading="lazy"
+                width={360}
+                height={270}
+              />
+            ) : thumb.isError ? (
+              <ImageOff className="size-6 text-muted-foreground" />
+            ) : (
+              <span className="text-muted-foreground">Loading preview…</span>
+            )}
+          </div>
+          <div className="space-y-2 p-3">
+            <p className="truncate font-medium" title={photo.filename}>
+              {photo.filename}
             </p>
+            {photo.caption ? (
+              <p className="line-clamp-2 min-h-10 text-muted-foreground">{photo.caption}</p>
+            ) : (
+              <p
+                className={cn(
+                  'min-h-10',
+                  photo.status === 'error' ? 'text-destructive' : 'text-muted-foreground',
+                )}
+              >
+                {photo.status === 'error'
+                  ? 'Classification failed. Open to review.'
+                  : 'Waiting for classification'}
+              </p>
+            )}
+            {photo.category && <p className="truncate">Category: {photo.category}</p>}
+          </div>
+        </button>
+        <div className="flex min-h-10 flex-wrap gap-2 px-3 pb-3">
+          {photo.tags.slice(0, 4).map((tag) => (
+            <button
+              key={tag}
+              onClick={() => onTag(tag)}
+              className="max-w-full truncate rounded border px-2 py-1 text-muted-foreground hover:bg-muted"
+              title={`Search tag ${tag}`}
+            >
+              {tag}
+            </button>
+          ))}
+          {photo.tags.length > 4 && (
+            <button
+              onClick={onSelect}
+              className="rounded px-2 py-1 text-muted-foreground hover:bg-muted"
+            >
+              +{photo.tags.length - 4}
+            </button>
           )}
-          {photo.category && <p className="truncate">Category: {photo.category}</p>}
         </div>
-      </button>
-      <div className="flex min-h-10 flex-wrap gap-2 px-3 pb-3">
-        {photo.tags.slice(0, 4).map((tag) => (
-          <button
-            key={tag}
-            onClick={() => onTag(tag)}
-            className="max-w-full truncate rounded border px-2 py-1 text-muted-foreground hover:bg-muted"
-            title={`Search tag ${tag}`}
-          >
-            {tag}
-          </button>
-        ))}
-        {photo.tags.length > 4 && (
-          <button
-            onClick={onSelect}
-            className="rounded px-2 py-1 text-muted-foreground hover:bg-muted"
-          >
-            +{photo.tags.length - 4}
-          </button>
-        )}
-      </div>
-    </article>
+      </article>
+    </PhotoContextMenu>
   );
 }
 function PhotoDialog({
@@ -511,6 +517,7 @@ function PhotoDialog({
   onClose: () => void;
   onSave: () => Promise<void>;
 }) {
+  const [contextError, setContextError] = useState('');
   const [tags, setTags] = useState(photo.tags.join(', '));
   const [caption, setCaption] = useState(photo.caption);
   const [category, setCategory] = useState(photo.category ?? '');
@@ -553,21 +560,23 @@ function PhotoDialog({
           {photo.path}
         </DialogDescription>
         <div className="mt-4 grid gap-4 md:grid-cols-[1.2fr_1fr]">
-          <div className="grid min-h-64 place-items-center rounded-md bg-muted">
-            {preview.data ? (
-              <img
-                src={preview.data}
-                alt={photo.caption || photo.filename}
-                className="max-h-[65vh] w-full object-contain"
-              />
-            ) : (
-              <p>
-                {preview.isError
-                  ? 'Image could not be opened. It may have moved.'
-                  : 'Loading preview…'}
-              </p>
-            )}
-          </div>
+          <PhotoContextMenu photoId={photo.id} onError={setContextError}>
+            <div className="grid min-h-64 place-items-center rounded-md bg-muted">
+              {preview.data ? (
+                <img
+                  src={preview.data}
+                  alt={photo.caption || photo.filename}
+                  className="max-h-[65vh] w-full object-contain"
+                />
+              ) : (
+                <p>
+                  {preview.isError
+                    ? 'Image could not be opened. It may have moved.'
+                    : 'Loading preview…'}
+                </p>
+              )}
+            </div>
+          </PhotoContextMenu>
           <form
             className="space-y-4"
             onSubmit={(e) => {
@@ -591,6 +600,11 @@ function PhotoDialog({
                 placeholder="Optional category…"
               />
             </label>
+            {contextError && (
+              <p role="alert" className="text-destructive">
+                {contextError}
+              </p>
+            )}
             {photo.error && (
               <p role="alert" className="break-words text-destructive">
                 {photo.error}

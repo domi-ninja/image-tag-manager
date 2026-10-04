@@ -4,20 +4,18 @@ import type { Photo, Folder, Filter, Classification } from '../src/lib/api';
 const raw = JSON.parse(readFileSync('results/qwen.json', 'utf8')) as {
   results: { image: string; parsed: Classification }[];
 };
-const fixtures: Photo[] = raw.results
-  .slice(0, 6)
-  .map((r, i) => ({
-    id: i + 1,
-    folderId: 1,
-    path: `/photos/${r.image}`,
-    filename: r.image,
-    caption: r.parsed.caption,
-    tags: r.parsed.tags,
-    category: null,
-    status: 'classified',
-    error: null,
-    modified: 1,
-  }));
+const fixtures: Photo[] = raw.results.slice(0, 6).map((r, i) => ({
+  id: i + 1,
+  folderId: 1,
+  path: `/photos/${r.image}`,
+  filename: r.image,
+  caption: r.parsed.caption,
+  tags: r.parsed.tags,
+  category: null,
+  status: 'classified',
+  error: null,
+  modified: 1,
+}));
 const thumbnails = Object.fromEntries(
   fixtures.map((p) => [
     p.id,
@@ -51,6 +49,10 @@ test.beforeEach(async ({ page }) => {
             automatic,
             revision: 1,
           };
+        if (command === 'image_action') {
+          document.body.dataset.imageAction = JSON.stringify(args);
+          return;
+        }
         if (command === 'folders') return folders;
         if (command === 'stats')
           return { total: images.length, classified: images.length, pending: 0, errors: 0 };
@@ -148,4 +150,38 @@ test('keyboard dialog, unsaved edits, empty search, and visual layout', async ({
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true,
   );
+});
+
+test('image context menu invokes native actions from cards and the enlarged preview', async ({
+  page,
+}) => {
+  await page.goto('/');
+  const photo = fixtures[0];
+  const card = page.getByRole('button', { name: `Open ${photo.filename}`, exact: true });
+  const actions = [
+    ['Copy image', 'copy_image'],
+    ['Copy image path', 'copy_path'],
+    ['Show in file manager', 'reveal'],
+    ['Open image', 'open'],
+  ] as const;
+  for (const [label, action] of actions) {
+    await card.click({ button: 'right' });
+    await expect(page.getByRole('menuitem')).toHaveText(actions.map(([label]) => label));
+    await page.getByRole('menuitem', { name: label, exact: true }).click();
+    await expect(page.locator('body')).toHaveAttribute(
+      'data-image-action',
+      JSON.stringify({ id: photo.id, action }),
+    );
+  }
+  await card.click();
+  await page
+    .getByRole('dialog')
+    .getByRole('img', { name: photo.caption, exact: true })
+    .click({ button: 'right' });
+  await page.getByRole('menuitem', { name: 'Copy image path', exact: true }).click();
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-image-action',
+    JSON.stringify({ id: photo.id, action: 'copy_path' }),
+  );
+  await expect(page.getByRole('dialog')).toBeVisible();
 });

@@ -125,6 +125,22 @@ pub fn jpeg(path: &Path, max: u32) -> Result<Vec<u8>> {
     let _permit = IMAGE_DECODE
         .lock()
         .map_err(|_| anyhow::anyhow!("Image decoder unavailable"))?;
+    let image = decode_image(path)?;
+    let image = image.thumbnail(max, max).to_rgb8();
+    let mut bytes = Cursor::new(Vec::new());
+    image::codecs::jpeg::JpegEncoder::new_with_quality(&mut bytes, 88).encode_image(&image)?;
+    Ok(bytes.into_inner())
+}
+
+#[cfg(feature = "desktop")]
+pub fn rgba(path: &Path) -> Result<image::RgbaImage> {
+    let _permit = IMAGE_DECODE
+        .lock()
+        .map_err(|_| anyhow::anyhow!("Image decoder unavailable"))?;
+    Ok(decode_image(path)?.to_rgba8())
+}
+
+fn decode_image(path: &Path) -> Result<image::DynamicImage> {
     if fs::metadata(path)?.len() > 100 * 1024 * 1024 {
         bail!("Image exceeds the 100 MB limit")
     }
@@ -133,10 +149,7 @@ pub fn jpeg(path: &Path, max: u32) -> Result<Vec<u8>> {
     let orientation = decoder.orientation()?;
     let mut image = image::DynamicImage::from_decoder(decoder)?;
     image.apply_orientation(orientation);
-    let image = image.thumbnail(max, max).to_rgb8();
-    let mut bytes = Cursor::new(Vec::new());
-    image::codecs::jpeg::JpegEncoder::new_with_quality(&mut bytes, 88).encode_image(&image)?;
-    Ok(bytes.into_inner())
+    Ok(image)
 }
 pub fn data_url(bytes: &[u8]) -> String {
     format!("data:image/jpeg;base64,{}", STANDARD.encode(bytes))

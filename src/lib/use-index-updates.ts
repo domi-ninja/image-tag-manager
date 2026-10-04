@@ -12,7 +12,9 @@ export function useIndexUpdates(status: Status | undefined) {
       if (revision === undefined || phase === 'download') return;
       void client.invalidateQueries({
         predicate: (query) =>
-          ['folders', 'stats', 'photos', 'tags'].includes(String(query.queryKey[0])),
+          ['folders', 'stats', 'photos', 'tags', 'tagCatalog', 'tagSuggestions'].includes(
+            String(query.queryKey[0]),
+          ),
       });
     },
     [client, revision, phase],

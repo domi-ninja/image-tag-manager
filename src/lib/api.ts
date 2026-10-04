@@ -15,7 +15,7 @@ export interface Photo {
   path: string;
   filename: string;
   caption: string;
-  tags: string[];
+  tags: PhotoTag[];
   category: string | null;
   status: 'pending' | 'classified' | 'error';
   error: string | null;
@@ -32,7 +32,19 @@ export interface Page {
   images: Photo[];
   total: number;
 }
+export type TagSource = 'ai' | 'user' | 'folder' | 'legacy';
+export interface PhotoTag {
+  id: number;
+  name: string;
+  sources: TagSource[];
+}
+export interface TagPage {
+  tags: Tag[];
+  total: number;
+  orphans: number;
+}
 export interface Tag {
+  id: number;
   name: string;
   count: number;
 }
@@ -65,6 +77,12 @@ export const api = {
   removeFolder: (id: number) => invoke<void>('remove_folder', { id }),
   search: (filter: Filter) => invoke<Page>('search', { filter }),
   tags: (folderId: number | null) => invoke<Tag[]>('tags', { folderId }),
+  tagCatalog: (query: string, orphansOnly: boolean, page: number) =>
+    invoke<TagPage>('tag_catalog', { query, orphansOnly, page }),
+  tagSuggestions: (query: string) => invoke<Tag[]>('tag_suggestions', { query }),
+  renameTag: (id: number, name: string) => invoke<void>('rename_tag', { id, name }),
+  deleteTag: (id: number) => invoke<void>('delete_tag', { id }),
+  purgeOrphanTags: () => invoke<number>('purge_orphan_tags'),
   stats: () => invoke<Stats>('stats'),
   status: () => invoke<Status>('status'),
   start: (action: 'scan' | 'classify' | 'download') => invoke<void>('start', { action }),

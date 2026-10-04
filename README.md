@@ -35,7 +35,20 @@ macOS has not been tested.
    checks enabled folders every 30 seconds while the app is open.
 4. Search tags, captions, filenames, and categories. Words use prefix matching and
    combine with AND. Click a tag for an exact tag filter. Filter by folder or status.
-5. Open an image to edit its tags, caption, or category. Edits update search immediately.
+5. Open an image to edit tags with autocomplete and click a tag button to remove it.
+   Pale blue tags come from manual edits or folder names; hover for the exact source.
+   AI tags stay neutral. Edits update search immediately.
+6. Use the settings button beside **Tags** to manage the shared tag catalog. Search,
+   rename or merge tags, see image-use counts, filter unused tags, and purge orphans.
+   Only unused tags can be deleted; purge never removes an image's assigned tags.
+
+Each nested directory below a configured folder contributes its name as a tag.
+For example, with a root of `Photos`, `Photos/Trips/Alps/image.jpg` gets `trips`
+and `alps`. The configured root and its parents do not become tags. Folder and
+manual tags survive AI classification and file-content changes. Removing a folder
+tag from an image suppresses it on later scans, even after orphan cleanup.
+Renaming a tag updates all its images as a user edit; naming an existing tag merges
+them. Files and folders on disk are not renamed.
 
 Folder settings allow a display name, pause/resume, optional category list, and extra
 classification instructions. Categories and instructions apply to future classifications.
@@ -80,6 +93,18 @@ Tauri's per-user application data directory stores:
 
 Typical Linux path: `~/.local/share/com.domi.imageshelf/`.
 Typical Windows path: `%APPDATA%\com.domi.imageshelf\`.
+Tags are unique entities in `tags`, connected to images through `image_tags`.
+Each assignment records its source: AI, user, folder, or legacy. Repeated names are
+trimmed, lowercased, and deduplicated; use counts count distinct images. A tag can
+have several sources on one image. `images.tags_text` is a derived FTS cache,
+maintained by relationship triggers, not the authoritative tag store.
+
+On first launch with an older index, the app saves
+`index.before-tag-entities.sqlite3` in the same data directory, then migrates in a
+transaction and adds tags from existing paths. Old tags are marked “origin unknown”
+because previous versions did not record their source. The old `tags_json` column
+is removed. Do not open a migrated index with an older app version.
+
 The SQLite index uses WAL and foreign-key cascades. Search is paginated at 48 images;
 the UI never loads a whole large library into memory. Thumbnails are decoded serially
 to bound memory usage.
@@ -107,8 +132,8 @@ pnpm exec playwright test
 ```
 
 The Rust tests exercise real SQLite indexing, prefix search, tag updates, pagination,
-folder removal, changed/missing files, overlapping roots, and background/manual edit
-races. Browser tests exercise the actual React UI with a mocked Tauri bridge and the
+folder removal, changed/missing files, overlapping roots, background/manual edit
+races, transactional tag migration, source preservation, counts, merging, and orphan cleanup. Browser tests exercise the actual React UI with a mocked Tauri bridge and the
 retained sample photos. They do not claim to exercise a native Windows webview.
 
 Run a real, native inference and indexing check without the desktop window:
@@ -125,8 +150,11 @@ the resulting index. It does not call Python or a hosted model API.
 ### Verified in this workspace
 
 - Linux Debian installer built successfully, approximately 38 MB including the CPU runtime.
-- Eight Rust database tests and three browser interaction tests passed; TypeScript build
+- Fourteen Rust database tests and six browser interaction tests passed; TypeScript build
   and Rust clippy passed.
+- The native app migrated a 21-image test index, preserved legacy tags, and passed
+  source tracking, usage count, rename/search, and orphan deletion checks. See
+  [tag validation](results/tag-native-validation.json).
 - The extracted Debian app ran in native WebKit through WebDriver. Real Qwen inference
   with configured categories reached SQLite, tag search returned the indexed results,
   and pause retained pending images. See [native validation](results/desktop-validation.json)

@@ -18,6 +18,7 @@ import {
   LoaderCircle,
 } from 'lucide-react';
 import { api, type Filter, type Folder, type Photo } from './lib/api';
+import { TagManager } from './components/tag-manager';
 import { TagEditor } from './components/tag-editor';
 import { PhotoContextMenu } from './components/photo-context-menu';
 import { Button } from './components/ui/button';
@@ -35,6 +36,7 @@ export default function App() {
   const [selected, setSelected] = useState<Photo | null>(null);
   const [folderEdit, setFolderEdit] = useState<Folder | null>(null);
   const [error, setError] = useState('');
+  const [tagManager, setTagManager] = useState(false);
   const status = useQuery({ queryKey: ['status'], queryFn: api.status, refetchInterval: 1000 });
   useIndexUpdates(status.data);
   const busy = status.data?.busy ?? false;
@@ -159,9 +161,21 @@ export default function App() {
             ))}
           </nav>
           <div className="mt-3 flex min-h-0 flex-1 flex-col border-t p-3">
-            <h2 className="mb-3 font-medium">Tags</h2>
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <h2 className="font-medium">Tags</h2>
+              <Button
+                variant="ghost"
+                className="px-2"
+                aria-label="Manage tags"
+                onClick={() => setTagManager(true)}
+              >
+                <Settings2 />
+              </Button>
+            </div>
             {!tags.data?.length && (
-              <p className="text-muted-foreground">Tags appear here after classification.</p>
+              <p className="text-muted-foreground">
+                Tags appear here as images are scanned and classified.
+              </p>
             )}
             <div className="flex-1 space-y-1 overflow-y-auto">
               {tags.data?.map((tag) => (
@@ -406,6 +420,15 @@ export default function App() {
           </footer>
         </main>
       </div>
+      {tagManager && (
+        <TagManager
+          onClose={() => setTagManager(false)}
+          onChange={async () => {
+            change({ tag: null });
+            await invalidate();
+          }}
+        />
+      )}
       {selected && (
         <PhotoDialog photo={selected} onClose={() => setSelected(null)} onSave={invalidate} />
       )}
@@ -488,12 +511,12 @@ function PhotoCard({
         <div className="flex min-h-10 flex-wrap gap-2 px-3 pb-3">
           {photo.tags.slice(0, 4).map((tag) => (
             <button
-              key={tag}
-              onClick={() => onTag(tag)}
+              key={tag.id}
+              onClick={() => onTag(tag.name)}
               className="max-w-full truncate rounded border px-2 py-1 text-muted-foreground hover:bg-muted"
-              title={`Search tag ${tag}`}
+              title={`Search tag ${tag.name}`}
             >
-              {tag}
+              {tag.name}
             </button>
           ))}
           {photo.tags.length > 4 && (
@@ -519,7 +542,7 @@ function PhotoDialog({
   onSave: () => Promise<void>;
 }) {
   const [contextError, setContextError] = useState('');
-  const [tags, setTags] = useState(photo.tags);
+  const [tags, setTags] = useState(photo.tags.map((tag) => tag.name));
   const [tagQuery, setTagQuery] = useState('');
   const [caption, setCaption] = useState(photo.caption);
   const [category, setCategory] = useState(photo.category ?? '');
@@ -543,7 +566,7 @@ function PhotoDialog({
   const dirty =
     tagQuery.trim() !== '' ||
     tags.length !== photo.tags.length ||
-    tags.some((tag) => !photo.tags.includes(tag)) ||
+    tags.some((tag) => !photo.tags.some((original) => original.name === tag)) ||
     caption !== photo.caption ||
     category !== (photo.category ?? '');
   const [discard, setDiscard] = useState(false);
@@ -600,6 +623,7 @@ function PhotoDialog({
           >
             <TagEditor
               tags={tags}
+              originalTags={photo.tags}
               onChange={setTags}
               query={tagQuery}
               onQueryChange={setTagQuery}

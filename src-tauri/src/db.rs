@@ -1,3 +1,4 @@
+use crate::tags::{self, PhotoTag, TagSource};
 use anyhow::{bail, Context, Result};
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
@@ -31,7 +32,7 @@ pub struct Photo {
     pub path: String,
     pub filename: String,
     pub caption: String,
-    pub tags: Vec<String>,
+    pub tags: Vec<PhotoTag>,
     pub category: Option<String>,
     pub status: String,
     pub error: Option<String>,
@@ -52,11 +53,6 @@ pub struct Search {
 pub struct Page {
     pub images: Vec<Photo>,
     pub total: i64,
-}
-#[derive(Serialize)]
-pub struct Tag {
-    pub name: String,
-    pub count: i64,
 }
 #[derive(Serialize)]
 pub struct Stats {
@@ -82,44 +78,46 @@ pub fn clean_tags(tags: Vec<String>) -> Vec<String> {
         .collect();
     tags.sort();
     tags.dedup();
-    tags.truncate(40);
     tags
 }
 fn photo_row(r: &rusqlite::Row<'_>) -> rusqlite::Result<Photo> {
-    let tags: String = r.get(5)?;
     Ok(Photo {
         id: r.get(0)?,
         folder_id: r.get(1)?,
         path: r.get(2)?,
         filename: r.get(3)?,
         caption: r.get(4)?,
-        tags: serde_json::from_str(&tags).unwrap_or_default(),
+        tags: vec![],
         category: r.get(6)?,
         status: r.get(7)?,
         error: r.get(8)?,
         modified: r.get(9)?,
     })
 }
-const COLUMNS:&str="i.id,i.folder_id,i.path,i.filename,i.caption,i.tags_json,i.category,i.status,i.error,i.modified";
+const COLUMNS: &str =
+    "i.id,i.folder_id,i.path,i.filename,i.caption,NULL,i.category,i.status,i.error,i.modified";
 impl Db {
     pub fn new(root: impl AsRef<Path>) -> Result<Self> {
         let db = Self {
             root: root.as_ref().to_owned(),
         };
         std::fs::create_dir_all(db.root.join("thumbnails"))?;
-        db.connect()?.execute_batch("PRAGMA journal_mode=WAL;
-        CREATE TABLE IF NOT EXISTS folders(id INTEGER PRIMARY KEY,path TEXT NOT NULL UNIQUE,name TEXT NOT NULL,enabled INTEGER NOT NULL DEFAULT 1,categories TEXT NOT NULL DEFAULT '[]',instructions TEXT NOT NULL DEFAULT '');
-        CREATE TABLE IF NOT EXISTS images(id INTEGER PRIMARY KEY,folder_id INTEGER NOT NULL REFERENCES folders(id) ON DELETE CASCADE,path TEXT NOT NULL UNIQUE,filename TEXT NOT NULL,modified INTEGER NOT NULL,size INTEGER NOT NULL,seen TEXT NOT NULL,caption TEXT NOT NULL DEFAULT '',tags_json TEXT NOT NULL DEFAULT '[]',tags_text TEXT NOT NULL DEFAULT '',category TEXT,status TEXT NOT NULL DEFAULT 'pending',error TEXT);
-        CREATE INDEX IF NOT EXISTS images_folder ON images(folder_id);
-        CREATE INDEX IF NOT EXISTS images_status ON images(status,folder_id);
-        CREATE TABLE IF NOT EXISTS tags(image_id INTEGER NOT NULL REFERENCES images(id) ON DELETE CASCADE,name TEXT NOT NULL,PRIMARY KEY(image_id,name));
-        CREATE INDEX IF NOT EXISTS tags_name ON tags(name,image_id);
-        CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY,value TEXT NOT NULL);
-        CREATE VIRTUAL TABLE IF NOT EXISTS image_search USING fts5(filename,caption,tags_text,category,content='images',content_rowid='id',tokenize='unicode61 remove_diacritics 2');
-        CREATE TRIGGER IF NOT EXISTS images_ai AFTER INSERT ON images BEGIN INSERT INTO image_search(rowid,filename,caption,tags_text,category) VALUES(new.id,new.filename,new.caption,new.tags_text,new.category); END;
-        CREATE TRIGGER IF NOT EXISTS images_ad AFTER DELETE ON images BEGIN INSERT INTO image_search(image_search,rowid,filename,caption,tags_text,category) VALUES('delete',old.id,old.filename,old.caption,old.tags_text,old.category); END;
-        CREATE TRIGGER IF NOT EXISTS images_au AFTER UPDATE OF filename,caption,tags_text,category ON images BEGIN INSERT INTO image_search(image_search,rowid,filename,caption,tags_text,category) VALUES('delete',old.id,old.filename,old.caption,old.tags_text,old.category); INSERT INTO image_search(rowid,filename,caption,tags_text,category) VALUES(new.id,new.filename,new.caption,new.tags_text,new.category); END;
-        PRAGMA user_version=1;")?;
+        let mut c = db.connect()?;
+        c.execute_batch("PRAGMA journal_mode=WAL;")?;
+        let version: i64 = c.query_row("PRAGMA user_version", [], |r| r.get(0))?;
+        if version > 2 {
+            bail!("This index was created by a newer version of Image Shelf");
+        }
+        if version == 0 {
+            c.execute_batch(include_str!("schema-v1.sql"))?;
+        }
+        if version < 2 {
+            let backup = db.root.join("index.before-tag-entities.sqlite3");
+            if version == 1 && !backup.exists() {
+                c.execute("VACUUM INTO ?1", [backup.to_string_lossy().as_ref()])?;
+            }
+            tags::migrate(&mut c)?;
+        }
         Ok(db)
     }
     pub fn connect(&self) -> Result<Connection> {
@@ -219,7 +217,7 @@ impl Db {
             .map(|s| format!("\"{}\"*", s))
             .collect();
         let fts = tokens.join(" AND ");
-        let condition="(?1 IS NULL OR i.folder_id=?1) AND (?2 IS NULL OR i.status=?2) AND (?3 IS NULL OR EXISTS(SELECT 1 FROM tags t WHERE t.image_id=i.id AND t.name=?3))";
+        let condition="(?1 IS NULL OR i.folder_id=?1) AND (?2 IS NULL OR i.status=?2) AND (?3 IS NULL OR EXISTS(SELECT 1 FROM image_tags it JOIN tags t ON t.id=it.tag_id WHERE it.image_id=i.id AND t.name=?3))";
         let condition = if fts.is_empty() {
             condition.to_string()
         } else {
@@ -237,34 +235,34 @@ impl Db {
             |r| r.get(0),
         )?;
         let mut s=c.prepare(&format!("SELECT {COLUMNS} FROM images i WHERE {condition} ORDER BY i.filename COLLATE NOCASE,i.id LIMIT 48 OFFSET ?5"))?;
-        let images = s
+        let mut images: Vec<Photo> = s
             .query_map(
                 params![q.folder_id, q.status, q.tag, fts, i64::from(q.page) * 48],
                 photo_row,
             )?
             .collect::<rusqlite::Result<_>>()?;
+        for image in &mut images {
+            image.tags = tags::photo_tags(&c, image.id)?;
+        }
         Ok(Page { images, total })
     }
-    pub fn tags(&self, folder: Option<i64>) -> Result<Vec<Tag>> {
-        let c = self.connect()?;
-        let mut s=c.prepare("SELECT t.name,count(*) FROM tags t JOIN images i ON i.id=t.image_id WHERE ?1 IS NULL OR i.folder_id=?1 GROUP BY t.name ORDER BY count(*) DESC,t.name LIMIT 80")?;
-        let rows = s.query_map([folder], |r| {
-            Ok(Tag {
-                name: r.get(0)?,
-                count: r.get(1)?,
-            })
-        })?;
-        Ok(rows.collect::<rusqlite::Result<_>>()?)
-    }
     pub fn photo(&self, id: i64) -> Result<Photo> {
-        Ok(self.connect()?.query_row(
+        let c = self.connect()?;
+        let mut photo = c.query_row(
             &format!("SELECT {COLUMNS} FROM images i WHERE id=?1"),
             [id],
             photo_row,
-        )?)
+        )?;
+        photo.tags = tags::photo_tags(&c, id)?;
+        Ok(photo)
     }
     pub fn next(&self) -> Result<Option<Photo>> {
-        Ok(self.connect()?.query_row(&format!("SELECT {COLUMNS} FROM images i JOIN folders f ON f.id=i.folder_id WHERE i.status='pending' AND f.enabled=1 ORDER BY i.id LIMIT 1"),[],photo_row).optional()?)
+        let c = self.connect()?;
+        let mut photo = c.query_row(&format!("SELECT {COLUMNS} FROM images i JOIN folders f ON f.id=i.folder_id WHERE i.status='pending' AND f.enabled=1 ORDER BY i.id LIMIT 1"), [], photo_row).optional()?;
+        if let Some(photo) = &mut photo {
+            photo.tags = tags::photo_tags(&c, photo.id)?;
+        }
+        Ok(photo)
     }
     pub fn retry(&self, folder: Option<i64>) -> Result<()> {
         self.connect()?.execute("UPDATE images SET status='pending',error=NULL WHERE status='error' AND (?1 IS NULL OR folder_id=?1)",[folder])?;
@@ -277,16 +275,39 @@ impl Db {
         expected_modified: Option<i64>,
     ) -> Result<bool> {
         let mut c = self.connect()?;
-        let tx = c.transaction()?;
-        let tags = clean_tags(classification.tags);
-        if tags.is_empty() {
-            bail!("Classification returned no tags")
+        let tx = c.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+        let names = clean_tags(classification.tags);
+        if expected_modified.is_some() && names.is_empty() {
+            bail!("Classification returned no tags");
         }
-        let n=tx.execute("UPDATE images SET caption=?1,tags_json=?2,tags_text=?3,category=?4,status='classified',error=NULL WHERE id=?5 AND (?6 IS NULL OR (modified=?6 AND status='pending'))",params![classification.caption.trim(),serde_json::to_string(&tags)?,tags.join(" "),classification.category,id,expected_modified])?;
+        let n=tx.execute("UPDATE images SET caption=?1,category=?2,status='classified',error=NULL WHERE id=?3 AND (?4 IS NULL OR (modified=?4 AND status='pending'))",params![classification.caption.trim(),classification.category,id,expected_modified])?;
         if n > 0 {
-            tx.execute("DELETE FROM tags WHERE image_id=?1", [id])?;
-            for tag in tags {
-                tx.execute("INSERT INTO tags VALUES(?1,?2)", params![id, tag])?;
+            if expected_modified.is_some() {
+                tx.execute(
+                    "DELETE FROM image_tags WHERE image_id=?1 AND source='ai'",
+                    [id],
+                )?;
+                for name in names {
+                    tags::attach(&tx, id, &name, "ai")?;
+                }
+            } else {
+                let existing = tags::photo_tags(&tx, id)?;
+                for tag in &existing {
+                    if !names.contains(&tag.name) {
+                        if tag.sources.contains(&TagSource::Folder) {
+                            tx.execute("INSERT OR IGNORE INTO ignored_folder_tags(image_id,name) VALUES(?1,?2)", params![id,tag.name])?;
+                        }
+                        tx.execute(
+                            "DELETE FROM image_tags WHERE image_id=?1 AND tag_id=?2",
+                            params![id, tag.id],
+                        )?;
+                    }
+                }
+                for name in names {
+                    if !existing.iter().any(|tag| tag.name == name) {
+                        tags::attach(&tx, id, &name, "user")?;
+                    }
+                }
             }
         }
         tx.commit()?;
@@ -351,13 +372,20 @@ impl Db {
                     )?;
                 }
                 Some((id, _, _)) => {
-                    tx.execute("DELETE FROM tags WHERE image_id=?1", [id])?;
-                    tx.execute("UPDATE images SET modified=?1,size=?2,seen=?3,caption='',tags_json='[]',tags_text='',category=NULL,status='pending',error=NULL WHERE id=?4",params![modified,meta.len() as i64,generation,id])?;
+                    tx.execute(
+                        "DELETE FROM image_tags WHERE image_id=?1 AND source IN ('ai','legacy')",
+                        [id],
+                    )?;
+                    tx.execute("UPDATE images SET modified=?1,size=?2,seen=?3,caption='',category=NULL,status='pending',error=NULL WHERE id=?4",params![modified,meta.len() as i64,generation,id])?;
                 }
                 None => {
                     tx.execute("INSERT INTO images(folder_id,path,filename,modified,size,seen) VALUES(?1,?2,?3,?4,?5,?6)",params![folder.id,path_string,entry.file_name().to_string_lossy(),modified,meta.len() as i64,generation])?;
                 }
             }
+            let id = tx.query_row("SELECT id FROM images WHERE path=?1", [&path_string], |r| {
+                r.get(0)
+            })?;
+            tags::sync_folder_tags(&tx, id, &folder.path, &path_string)?;
             tx.commit()?;
             count += 1;
         }
@@ -464,7 +492,8 @@ mod tests {
     fn unchanged_scan_preserves_tags_changed_file_requeues_and_deleted_file_disappears() {
         let (_dir, db, f) = fixture();
         let id = db.next().unwrap().unwrap().id;
-        db.store(id, result(), None).unwrap();
+        db.store(id, result(), Some(db.photo(id).unwrap().modified))
+            .unwrap();
         db.scan(&f, &AtomicBool::new(false)).unwrap();
         assert_eq!(db.stats().unwrap().classified, 1);
         std::fs::write(Path::new(&f.path).join("one.jpg"), b"changed image content").unwrap();

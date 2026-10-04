@@ -1,16 +1,21 @@
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
-import type { Photo, Folder, Filter, Classification } from '../src/lib/api';
+import type { Photo, Folder, Filter, Classification, PhotoTag, Tag } from '../src/lib/api';
 const raw = JSON.parse(readFileSync('results/qwen.json', 'utf8')) as {
   results: { image: string; parsed: Classification }[];
 };
+const tagNames = [...new Set(raw.results.flatMap((result) => result.parsed.tags))];
 const fixtures: Photo[] = raw.results.slice(0, 6).map((r, i) => ({
   id: i + 1,
   folderId: 1,
   path: `/photos/${r.image}`,
   filename: r.image,
   caption: r.parsed.caption,
-  tags: r.parsed.tags,
+  tags: r.parsed.tags.map((name, index) => ({
+    id: tagNames.indexOf(name) + 1,
+    name,
+    sources: [index === 0 ? 'folder' : index === 1 ? 'user' : 'ai'],
+  })),
   category: null,
   status: 'classified',
   error: null,
@@ -38,6 +43,25 @@ test.beforeEach(async ({ page }) => {
       let images = fixtures;
       let folders = [folder];
       let automatic = false;
+      const entities = new Map<number, string>(
+        fixtures.flatMap((photo) => photo.tags.map((tag) => [tag.id, tag.name] as const)),
+      );
+      entities.set(999, 'unused old tag');
+      function catalog(): Tag[] {
+        return [...entities].map(([id, name]) => ({
+          id,
+          name,
+          count: images.filter((photo) => photo.tags.some((tag) => tag.id === id)).length,
+        }));
+      }
+      function ensureTag(name: string): PhotoTag {
+        let id = [...entities].find(([, existing]) => existing === name)?.[0];
+        if (id === undefined) {
+          id = Math.max(...entities.keys()) + 1;
+          entities.set(id, name);
+        }
+        return { id, name, sources: ['user'] };
+      }
       const invoke = async (command: string, args: Record<string, unknown> = {}) => {
         if (command === 'status')
           return {
@@ -63,22 +87,62 @@ test.beforeEach(async ({ page }) => {
             (p) =>
               (!f.folderId || p.folderId === f.folderId) &&
               (!f.status || p.status === f.status) &&
-              (!f.tag || p.tags.includes(f.tag)) &&
+              (!f.tag || p.tags.some((tag) => tag.name === f.tag)) &&
               (!f.query ||
-                `${p.tags.join(' ')} ${p.caption} ${p.filename}`
+                `${p.tags.map((tag) => tag.name).join(' ')} ${p.caption} ${p.filename}`
                   .toLowerCase()
                   .includes(f.query.toLowerCase())),
           );
           return { images: list.slice(f.page * 48, (f.page + 1) * 48), total: list.length };
         }
-        if (command === 'tags') {
-          const tags = new Map<string, number>();
-          for (const p of images) for (const t of p.tags) tags.set(t, (tags.get(t) ?? 0) + 1);
-          return [...tags].map(([name, count]) => ({ name, count }));
+        if (command === 'tags') return catalog().filter((tag) => tag.count > 0);
+        if (command === 'tag_suggestions')
+          return catalog().filter((tag) => tag.name.includes(String(args.query).toLowerCase()));
+        if (command === 'tag_catalog') {
+          const all = catalog();
+          const filtered = all.filter(
+            (tag) =>
+              tag.name.includes(String(args.query).toLowerCase()) &&
+              (!args.orphansOnly || tag.count === 0),
+          );
+          return {
+            tags: filtered.slice(Number(args.page) * 50, (Number(args.page) + 1) * 50),
+            total: filtered.length,
+            orphans: all.filter((tag) => tag.count === 0).length,
+          };
+        }
+        if (command === 'purge_orphan_tags') {
+          const unused = catalog().filter((tag) => tag.count === 0);
+          for (const tag of unused) entities.delete(tag.id);
+          return unused.length;
+        }
+        if (command === 'delete_tag') {
+          entities.delete(Number(args.id));
+          return;
+        }
+        if (command === 'rename_tag') {
+          const target = ensureTag(String(args.name).trim().toLowerCase());
+          images = images.map((photo) => ({
+            ...photo,
+            tags: photo.tags
+              .map((tag) => (tag.id === args.id ? target : tag))
+              .filter((tag, index, all) => all.findIndex((other) => other.id === tag.id) === index),
+          }));
+          if (target.id !== args.id) entities.delete(Number(args.id));
+          return;
         }
         if (command === 'save_photo') {
-          images = images.map((p) =>
-            p.id === args.id ? { ...p, ...(args.classification as Classification) } : p,
+          const edit = args.classification as Classification;
+          images = images.map((photo) =>
+            photo.id === args.id
+              ? {
+                  ...photo,
+                  ...edit,
+                  tags: edit.tags.map(
+                    (name) => photo.tags.find((tag) => tag.name === name) ?? ensureTag(name),
+                  ),
+                }
+              : photo,
           );
           return;
         }
@@ -192,8 +256,8 @@ test('tag editor suggests existing tags, creates tags with Enter, and removes ta
 }) => {
   const photo = fixtures[0];
   const suggestion = fixtures
-    .flatMap((photo) => photo.tags)
-    .find((tag) => !photo.tags.includes(tag))!;
+    .flatMap((photo) => photo.tags.map((tag) => tag.name))
+    .find((tag) => !photo.tags.some((existing) => existing.name === tag))!;
   await page.getByRole('button', { name: `Open ${photo.filename}` }).click();
   const input = page.getByRole('combobox', { name: 'Add tag' });
   await input.fill(suggestion);
@@ -215,9 +279,9 @@ test('tag editor suggests existing tags, creates tags with Enter, and removes ta
   await expect(page.getByRole('dialog')).toBeVisible();
   await expect(page.getByText('Discard your unsaved changes?')).toHaveCount(0);
   await input.clear();
-  await page.getByRole('button', { name: `Remove tag ${photo.tags[0]}`, exact: true }).click();
+  await page.getByRole('button', { name: `Remove tag ${photo.tags[0].name}`, exact: true }).click();
   await expect(
-    page.getByRole('button', { name: `Remove tag ${photo.tags[0]}`, exact: true }),
+    page.getByRole('button', { name: `Remove tag ${photo.tags[0].name}`, exact: true }),
   ).toHaveCount(0);
   await input.fill('week');
   await page.screenshot({ path: 'test-results/tag-editor.png' });
@@ -231,6 +295,53 @@ test('tag editor suggests existing tags, creates tags with Enter, and removes ta
     page.getByRole('button', { name: `Remove tag ${suggestion}`, exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByRole('button', { name: `Remove tag ${photo.tags[0]}`, exact: true }),
+    page.getByRole('button', { name: `Remove tag ${photo.tags[0].name}`, exact: true }),
   ).toHaveCount(0);
+});
+
+test('tag sources are tinted and the manager shows usage, renames and purges unused tags', async ({
+  page,
+}) => {
+  const photo = fixtures[0];
+  await page.getByRole('button', { name: `Open ${photo.filename}` }).click();
+  const folderTag = page.getByRole('button', {
+    name: `Remove tag ${photo.tags[0].name}`,
+    exact: true,
+  });
+  await expect(folderTag).toHaveAttribute('title', 'Folder name');
+  await expect(folderTag).toHaveClass(/bg-sky-50/);
+  const userTag = page.getByRole('button', {
+    name: `Remove tag ${photo.tags[1].name}`,
+    exact: true,
+  });
+  await expect(userTag).toHaveAttribute('title', 'User');
+  await expect(userTag).toHaveClass(/bg-sky-50/);
+  const aiTag = page.getByRole('button', { name: `Remove tag ${photo.tags[2].name}`, exact: true });
+  await expect(aiTag).toHaveAttribute('title', 'AI');
+  await expect(aiTag).not.toHaveClass(/bg-sky-50/);
+  await page.screenshot({ path: 'test-results/tag-sources.png' });
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await page.getByRole('button', { name: 'Manage tags', exact: true }).click();
+  await page.getByRole('textbox', { name: 'Search tags' }).fill(photo.tags[0].name);
+  await expect(page.getByRole('row').filter({ hasText: photo.tags[0].name })).toContainText('1');
+  await expect(
+    page.getByRole('button', { name: `Delete tag ${photo.tags[0].name}`, exact: true }),
+  ).toBeDisabled();
+  await page.getByRole('button', { name: `Rename tag ${photo.tags[0].name}`, exact: true }).click();
+  await page.getByRole('textbox', { name: 'Tag name', exact: true }).fill('roadtrip');
+  await page.getByRole('button', { name: 'Save tag name', exact: true }).click();
+  await page.getByRole('textbox', { name: 'Search tags' }).clear();
+  await expect(
+    page.getByRole('button', { name: 'Rename tag roadtrip', exact: true }),
+  ).toBeVisible();
+  await page.getByRole('checkbox', { name: 'Unused only' }).check();
+  await expect(page.getByRole('row').filter({ hasText: 'unused old tag' })).toContainText('0');
+  await page.screenshot({ path: 'test-results/tag-manager.png' });
+  await page.getByRole('button', { name: 'Purge unused tags (1)' }).click();
+  await page.getByRole('button', { name: 'Confirm purge' }).click();
+  await expect(page.getByText('Removed 1 unused tags.')).toBeVisible();
+  await expect(page.getByRole('row').filter({ hasText: 'unused old tag' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Close dialog' }).click();
+  await page.getByRole('textbox', { name: 'Search images' }).fill('roadtrip');
+  await expect(page.getByRole('button', { name: `Open ${photo.filename}` })).toBeVisible();
 });

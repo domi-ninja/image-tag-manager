@@ -2,16 +2,18 @@ import { useId, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Command } from 'cmdk';
 import { X } from 'lucide-react';
-import { api } from '../lib/api';
+import { api, type PhotoTag } from '../lib/api';
 import { Button } from './ui/button';
 
 export function TagEditor({
   tags,
+  originalTags,
   onChange,
   query,
   onQueryChange,
 }: {
   tags: string[];
+  originalTags: PhotoTag[];
   onChange: (tags: string[]) => void;
   query: string;
   onQueryChange: (query: string) => void;
@@ -19,7 +21,10 @@ export function TagEditor({
   const id = useId();
   const input = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
-  const library = useQuery({ queryKey: ['tags', null], queryFn: () => api.tags(null) });
+  const library = useQuery({
+    queryKey: ['tagSuggestions', query.trim()],
+    queryFn: () => api.tagSuggestions(query.trim()),
+  });
   const text = query.trim().toLowerCase();
   const selected = new Set(tags.map((tag) => tag.toLowerCase()));
   const suggestions = (library.data ?? [])
@@ -41,22 +46,42 @@ export function TagEditor({
         Tags
       </label>
       <div className="flex flex-wrap gap-2" aria-label="Selected tags">
-        {tags.map((tag) => (
-          <Button
-            key={tag}
-            type="button"
-            variant="outline"
-            aria-label={`Remove tag ${tag}`}
-            className="max-w-full"
-            onClick={() => {
-              onChange(tags.filter((value) => value !== tag));
-              input.current?.focus();
-            }}
-          >
-            <span className="truncate">{tag}</span>
-            <X aria-hidden="true" />
-          </Button>
-        ))}
+        {tags.map((tag) => {
+          const sources = originalTags.find((original) => original.name === tag)?.sources ?? [
+            'user',
+          ];
+          const userGiven = sources.includes('user') || sources.includes('folder');
+          const origin = sources
+            .map(
+              (source) =>
+                ({
+                  ai: 'AI',
+                  user: 'User',
+                  folder: 'Folder name',
+                  legacy: 'Origin unknown (existing tag)',
+                })[source],
+            )
+            .join(', ');
+          return (
+            <Button
+              key={tag}
+              type="button"
+              variant="outline"
+              aria-label={`Remove tag ${tag}`}
+              title={origin}
+              className={
+                userGiven ? 'max-w-full border-sky-200 bg-sky-50 hover:bg-sky-100' : 'max-w-full'
+              }
+              onClick={() => {
+                onChange(tags.filter((value) => value !== tag));
+                input.current?.focus();
+              }}
+            >
+              <span className="truncate">{tag}</span>
+              <X aria-hidden="true" />
+            </Button>
+          );
+        })}
       </div>
 
       <Command
@@ -82,7 +107,6 @@ export function TagEditor({
           autoComplete="off"
           placeholder="Find or add a tag…"
           className="h-9 w-full min-w-0 rounded-md border bg-background px-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-          required={tags.length === 0}
           onKeyDown={(event) => {
             if (event.nativeEvent.isComposing) return;
             if (event.key === 'Escape' && open) {
@@ -140,7 +164,8 @@ export function TagEditor({
         )}
       </Command>
       <p id={`${id}-help`} className="text-muted-foreground">
-        Choose a suggestion or add a new tag. Click a tag to remove it.
+        Click a tag to remove it. Pale blue tags come from you or folder names; hover to see the
+        source.
       </p>
       {library.isError && (
         <p role="status" className="text-muted-foreground">

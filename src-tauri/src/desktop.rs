@@ -1,7 +1,8 @@
 use crate::{
-    db::{Classification, Db, Folder, Page, Search, Stats, Tag},
+    db::{Classification, Db, Folder, Page, Search, Stats},
     engine::{Engine, Status},
     inference,
+    tags::{Tag, TagPage},
 };
 use std::sync::Arc;
 use tauri::{Manager, State};
@@ -42,6 +43,31 @@ fn search(s: State<AppState>, filter: Search) -> Response<Page> {
 #[tauri::command]
 fn tags(s: State<AppState>, folder_id: Option<i64>) -> Response<Vec<Tag>> {
     s.db.tags(folder_id).map_err(err)
+}
+#[tauri::command]
+fn tag_catalog(
+    s: State<AppState>,
+    query: String,
+    orphans_only: bool,
+    page: u32,
+) -> Response<TagPage> {
+    s.db.tag_catalog(&query, orphans_only, page).map_err(err)
+}
+#[tauri::command]
+fn tag_suggestions(s: State<AppState>, query: String) -> Response<Vec<Tag>> {
+    s.db.tag_suggestions(&query).map_err(err)
+}
+#[tauri::command]
+fn rename_tag(s: State<AppState>, id: i64, name: String) -> Response<()> {
+    s.db.rename_tag(id, &name).map_err(err)
+}
+#[tauri::command]
+fn delete_tag(s: State<AppState>, id: i64) -> Response<()> {
+    s.db.delete_tag(id).map_err(err)
+}
+#[tauri::command]
+fn purge_orphan_tags(s: State<AppState>) -> Response<usize> {
+    s.db.purge_orphan_tags().map_err(err)
 }
 #[tauri::command]
 fn stats(s: State<AppState>) -> Response<Stats> {
@@ -171,6 +197,11 @@ pub fn run() {
             remove_folder,
             search,
             tags,
+            tag_catalog,
+            tag_suggestions,
+            rename_tag,
+            delete_tag,
+            purge_orphan_tags,
             stats,
             status,
             start,

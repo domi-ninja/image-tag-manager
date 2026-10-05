@@ -62,6 +62,10 @@ not depend on this checkout remaining in place.
    Use **Left/Right arrows** or the previous/next buttons to browse the current
    search results. Arrow keys in text inputs keep editing the text. Leaving an
    image with unsaved changes asks before discarding them.
+   The viewer preloads and decodes up to 10 results on either side. While a preview
+   loads, the previous image stays visible beneath a spinner. The cache follows
+   the current result and is released when the viewer closes; background loading
+   is limited to two requests at a time.
    **Trash** or **Delete** moves the original file immediately to the system trash
    (Recycle Bin on Windows), without confirmation, then shows the next result or
    the previous result at the end. Unsaved edits are discarded when trashing.
@@ -205,7 +209,7 @@ the resulting index. It does not call Python or a hosted model API.
 
 - Linux Debian installer built successfully, approximately 38 MB including the CPU runtime.
 - Twenty Rust database/worker tests, an isolated Linux trash integration test,
-  fourteen browser interaction tests, and a search parser test passed; TypeScript build
+  fifteen browser interaction tests, and a search parser test passed; TypeScript build
   and Rust clippy passed.
 - The extracted Debian app ran in native WebKit through WebDriver. Real Qwen inference
   with configured categories reached SQLite, tag search returned the indexed results,

@@ -30,6 +30,7 @@ import { Input, Textarea } from './components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from './components/ui/dialog';
 import { cn } from './lib/utils';
 import { useThumbnailSize } from './lib/use-thumbnail-size';
+import { useViewerPreviews } from './lib/use-viewer-previews';
 import { loadThumbnail } from './lib/thumbnail-loader';
 import { useIndexUpdates } from './lib/use-index-updates';
 
@@ -579,11 +580,14 @@ function PhotoViewer({
   onSave: () => Promise<void>;
 }) {
   const [current, setCurrent] = useState(initial);
+  const previews = useViewerPreviews(current, filter, total);
   const [showDetails, setShowDetails] = useState(true);
   const navigating = useRef(false);
   const navigation = useMutation({
     mutationFn: async (direction: number) => {
       const index = current.index + direction;
+      const cached = previews.photoAt(index);
+      if (cached) return { photo: cached, index };
       const page = await api.search({ ...filter, page: Math.floor(index / 48) });
       const photo = page.images[index % 48];
       if (!photo)
@@ -638,6 +642,7 @@ function PhotoViewer({
     <PhotoDialog
       key={current.photo.id}
       photo={current.photo}
+      previews={previews}
       onClose={onClose}
       onSave={onSave}
       onNavigate={navigate}
@@ -655,6 +660,7 @@ function PhotoViewer({
 }
 function PhotoDialog({
   photo,
+  previews,
   onClose,
   onSave,
   onNavigate,
@@ -667,6 +673,7 @@ function PhotoDialog({
   setShowDetails,
 }: {
   photo: Photo;
+  previews: ReturnType<typeof useViewerPreviews>;
   onClose: () => void;
   onSave: () => Promise<void>;
   onNavigate: (direction: number) => void;
@@ -684,12 +691,6 @@ function PhotoDialog({
   const [tagQuery, setTagQuery] = useState('');
   const [caption, setCaption] = useState(photo.caption);
   const [category, setCategory] = useState(photo.category ?? '');
-  const preview = useQuery({
-    queryKey: ['preview', photo.id, photo.modified],
-    gcTime: 0,
-    queryFn: () => api.preview(photo.id),
-    staleTime: Infinity,
-  });
   const save = useMutation({
     mutationFn: () =>
       api.savePhoto(photo.id, {
@@ -830,19 +831,30 @@ function PhotoDialog({
           <PhotoContextMenu photoId={photo.id} onError={setContextError}>
             <div
               aria-label="Image preview"
-              className="grid min-h-0 min-w-0 place-items-center overflow-hidden bg-muted"
+              className="relative grid min-h-0 min-w-0 place-items-center overflow-hidden bg-muted"
+              aria-busy={previews.loading || navigating}
             >
-              {preview.data ? (
+              {previews.displayed && (
                 <img
-                  src={preview.data}
-                  alt={photo.caption || photo.filename}
+                  src={previews.displayed.src}
+                  alt={previews.displayed.photo.caption || previews.displayed.photo.filename}
                   className="block size-full object-contain"
                 />
-              ) : (
-                <p>
-                  {preview.isError
-                    ? 'Image could not be opened. It may have moved.'
-                    : 'Loading preview…'}
+              )}
+              {(previews.loading || navigating) && (
+                <div
+                  role="status"
+                  aria-label="Loading preview"
+                  className="absolute inset-0 grid place-items-center bg-black/10"
+                >
+                  <span className="rounded-full bg-background/90 p-3 shadow">
+                    <LoaderCircle aria-hidden className="size-6 motion-safe:animate-spin" />
+                  </span>
+                </div>
+              )}
+              {previews.failed && (
+                <p role="alert" className="absolute bottom-4 rounded bg-background/95 p-3">
+                  Image could not be opened. It may have moved.
                 </p>
               )}
             </div>

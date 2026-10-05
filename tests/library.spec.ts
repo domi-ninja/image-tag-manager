@@ -50,6 +50,7 @@ test.beforeEach(async ({ page }) => {
       }
       const requestedPages: number[] = [];
       let firstThumbnailRequests = 0;
+      const previewRequests: number[] = [];
       let folders = [folder];
       let automatic = false;
       const entities = new Map<number, string>(
@@ -72,6 +73,15 @@ test.beforeEach(async ({ page }) => {
         return { id, name, sources: ['user'] };
       }
       const invoke = async (command: string, args: Record<string, unknown> = {}) => {
+        if (command === 'preview') {
+          previewRequests.push(Number(args.id));
+          document.body.dataset.previewRequests = JSON.stringify(previewRequests);
+          if (sessionStorage.getItem('hold-preview-id') === String(args.id)) {
+            await new Promise<void>((resolve) =>
+              window.addEventListener('release-preview', () => resolve(), { once: true }),
+            );
+          }
+        }
         if (command === 'trash_photo') {
           if (sessionStorage.getItem('trash-error')) throw new Error('System trash unavailable');
           images = images.filter((photo) => photo.id !== args.id);
@@ -727,4 +737,47 @@ test('detail trash button and Delete remove immediately, protect typing, and kee
   await page.keyboard.press('Delete');
   await expect(dialog).toHaveCount(0);
   await expect(page.getByText('No images match these filters')).toBeVisible();
+});
+
+test('viewer preloads ten neighbors each way and retains the previous image during a slow preview', async ({
+  page,
+}) => {
+  await page.evaluate(() => {
+    sessionStorage.setItem('large-library', 'true');
+    sessionStorage.setItem('hold-preview-id', '50');
+  });
+  await page.reload();
+  await page.getByLabel('Image library', { exact: true }).evaluate((element) => {
+    element.scrollTop = 3840;
+  });
+  await page
+    .getByRole('button', { name: 'Open image-49.jpg', exact: true })
+    .click({ position: { x: 8, y: 8 } });
+  const dialog = page.getByRole('dialog');
+  const stage = dialog.getByLabel('Image preview', { exact: true });
+  await expect(stage).toHaveAttribute('aria-busy', 'false');
+  await expect
+    .poll(async () => {
+      const requests = JSON.parse(
+        (await page.locator('body').getAttribute('data-preview-requests')) ?? '[]',
+      ) as number[];
+      return [...new Set(requests)].sort((a, b) => a - b);
+    })
+    .toEqual(Array.from({ length: 21 }, (_, index) => index + 39));
+  const previousSrc = await stage.locator('img').getAttribute('src');
+  await page.keyboard.press('ArrowRight');
+  await expect(dialog.getByRole('heading')).toHaveText('image-50.jpg');
+  await expect(stage.getByRole('status', { name: 'Loading preview' })).toBeVisible();
+  await expect(stage.locator('img')).toHaveAttribute('src', previousSrc!);
+  await page.screenshot({ path: 'test-results/viewer-preload-wait.png' });
+  await page.evaluate(() => {
+    sessionStorage.removeItem('hold-preview-id');
+    window.dispatchEvent(new Event('release-preview'));
+  });
+  await expect(stage).toHaveAttribute('aria-busy', 'false');
+  await expect(stage.locator('img')).not.toHaveAttribute('src', previousSrc!);
+  await page.keyboard.press('ArrowLeft');
+  await expect(dialog.getByRole('heading')).toHaveText('image-49.jpg');
+  await expect(stage).toHaveAttribute('aria-busy', 'false');
+  await expect(stage.locator('img')).toHaveAttribute('src', previousSrc!);
 });

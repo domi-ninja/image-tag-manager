@@ -179,6 +179,15 @@ pub fn run() {
                 let _ = window.set_focus();
             }
         }))
+        // Migrate before Tauri creates the webview's data directory.
+        .plugin(
+            tauri::plugin::Builder::<tauri::Wry>::new("data-directory")
+                .setup(|app, _| {
+                    crate::data_directory::migrate(&app.path().app_data_dir()?)?;
+                    Ok(())
+                })
+                .build(),
+        )
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
@@ -191,8 +200,8 @@ pub fn run() {
             }
         })
         .setup(|app| {
-            crate::updates::initialize(app.handle());
             let root = app.path().app_data_dir()?;
+            crate::updates::initialize(app.handle());
             let db = Db::new(root)?;
             let mut runtime = app.path().resource_dir()?.join("runtime");
             if cfg!(debug_assertions) {

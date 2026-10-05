@@ -37,8 +37,10 @@ Launch **Image Tag Manager** from your application menu or run `~/.local/bin/ima
 The installer uses a user-writable AppImage, enabling in-app updates. The installed files live in
 `${XDG_DATA_HOME:-~/.local/share}/image-tag-manager-desktop`; the desktop entry and icons
 use the same data directory. Your indexed library, settings, and downloaded models
-remain in the separate `com.domi.imageshelf` data directory. This identifier stays
-stable across the app rename so existing libraries and models continue to work. The installed app does
+live in the separate `ninja.domi.image-tag-manager` data directory. On first launch,
+the app moves the previous `com.domi.imageshelf` directory to this location,
+preserving your library and models without copying them. Close the old app before
+launching the new version. The installed app does
 not depend on this checkout remaining in place.
 
 ## Use
@@ -145,8 +147,8 @@ Tauri's per-user application data directory stores:
 - `thumbnails/`: cached JPEG previews.
 - `llama-server.log`: native inference diagnostics.
 
-Typical Linux path: `~/.local/share/com.domi.imageshelf/`.
-Typical Windows path: `%APPDATA%\com.domi.imageshelf\`.
+Typical Linux path: `~/.local/share/ninja.domi.image-tag-manager/`.
+Typical Windows path: `%APPDATA%\ninja.domi.image-tag-manager\`.
 Tags are unique entities in `tags`, connected to images through `image_tags`.
 Each assignment records its source: AI, user, or folder. Repeated names are
 trimmed, lowercased, and deduplicated; use counts count distinct images. A tag can

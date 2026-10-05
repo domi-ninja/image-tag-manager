@@ -1,4 +1,6 @@
 pub mod db;
+#[cfg(any(feature = "desktop", test))]
+mod data_directory;
 #[cfg(feature = "desktop")]
 pub mod desktop;
 pub mod engine;

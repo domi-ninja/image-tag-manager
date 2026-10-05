@@ -448,9 +448,9 @@ mod tests {
 
     #[test]
     #[cfg(target_os = "linux")]
-    #[ignore = "Run with IMAGE_SHELF_TEST_TRASH=1 and an isolated XDG_DATA_HOME"]
+    #[ignore = "Run with IMAGE_TAG_MANAGER_TEST_TRASH=1 and an isolated XDG_DATA_HOME"]
     fn trash_photo_moves_file_and_removes_index() {
-        assert_eq!(std::env::var("IMAGE_SHELF_TEST_TRASH").unwrap(), "1");
+        assert_eq!(std::env::var("IMAGE_TAG_MANAGER_TEST_TRASH").unwrap(), "1");
         let trash_root = PathBuf::from(std::env::var("XDG_DATA_HOME").unwrap()).join("Trash");
         let (_dir, db, _folder) = fixture();
         let photo = db.next().unwrap().unwrap();

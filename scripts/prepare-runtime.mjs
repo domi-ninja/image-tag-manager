@@ -34,9 +34,9 @@ if (target.endsWith('.zip'))
     [
       '-NoProfile',
       '-Command',
-      'Expand-Archive -LiteralPath $env:IMAGE_SHELF_ARCHIVE -DestinationPath $env:IMAGE_SHELF_UNPACK -Force',
+      'Expand-Archive -LiteralPath $env:IMAGE_TAG_MANAGER_ARCHIVE -DestinationPath $env:IMAGE_TAG_MANAGER_UNPACK -Force',
     ],
-    { env: { ...process.env, IMAGE_SHELF_ARCHIVE: archive, IMAGE_SHELF_UNPACK: unpack } },
+    { env: { ...process.env, IMAGE_TAG_MANAGER_ARCHIVE: archive, IMAGE_TAG_MANAGER_UNPACK: unpack } },
   );
 else execFileSync('tar', ['-xzf', archive, '-C', unpack]);
 await mkdir(dir, { recursive: true });

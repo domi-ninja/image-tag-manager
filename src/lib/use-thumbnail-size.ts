@@ -4,14 +4,15 @@ const MIN_SIZE = 160;
 const MAX_SIZE = 640;
 const DEFAULT_SIZE = 320;
 const STEP = 40;
-const STORAGE_KEY = 'image-shelf.thumbnail-size';
+const STORAGE_KEY = 'image-tag-manager.thumbnail-size';
+const LEGACY_STORAGE_KEY = 'image-shelf.thumbnail-size';
 const clamp = (value: number) => Math.max(MIN_SIZE, Math.min(MAX_SIZE, value));
 
 export function useThumbnailSize(enabled: boolean) {
   const galleryRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
+      const saved = localStorage.getItem(STORAGE_KEY) ?? localStorage.getItem(LEGACY_STORAGE_KEY);
       const value = saved === null ? DEFAULT_SIZE : Number(saved);
       return Number.isFinite(value) ? clamp(value) : DEFAULT_SIZE;
     } catch {
@@ -26,6 +27,7 @@ export function useThumbnailSize(enabled: boolean) {
     function persistThumbnailSize() {
       try {
         localStorage.setItem(STORAGE_KEY, String(size));
+        localStorage.removeItem(LEGACY_STORAGE_KEY);
       } catch {
         /* Resizing still works when local storage is unavailable. */
       }

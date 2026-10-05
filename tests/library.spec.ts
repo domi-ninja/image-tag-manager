@@ -449,6 +449,20 @@ test('tag clicks appear in search and hashtag autocomplete supports keyboard, sp
   await expect(page.getByRole('button', { name: /^Open .*jpg$/ })).toHaveCount(1);
 });
 
+test('thumbnail size migrates the old preference and prefers the current key', async ({ page }) => {
+  await page.evaluate(() => {
+    localStorage.removeItem('image-tag-manager.thumbnail-size');
+    localStorage.setItem('image-shelf.thumbnail-size', '440');
+  });
+  await page.reload();
+  const size = page.getByRole('group', { name: 'Thumbnail size', exact: true });
+  await expect(size).toContainText('440px');
+  expect(await page.evaluate(() => localStorage.getItem('image-shelf.thumbnail-size'))).toBeNull();
+  await page.evaluate(() => localStorage.setItem('image-shelf.thumbnail-size', '200'));
+  await page.reload();
+  await expect(size).toContainText('440px');
+});
+
 test('thumbnail size follows Ctrl shortcuts, stays bounded, and persists without page zoom', async ({
   page,
 }) => {

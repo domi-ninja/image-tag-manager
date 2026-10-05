@@ -8,7 +8,6 @@ export default defineConfig({
     strictPort: true,
     watch: {
       ignored: [
-        '**/.venv/**',
         '**/models/**',
         '**/.native-test/**',
         '**/src-tauri/**',

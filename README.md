@@ -5,8 +5,8 @@ searchable tags and captions, and find images through a SQLite full-text index.
 
 The application is React + TypeScript + Tailwind + shadcn-style Radix components,
 inside Tauri. Rust handles SQLite, folder scanning, thumbnails, model downloads, and
-llama.cpp. **No Python is used to build or run the application.** Earlier classifier
-research files remain in this repository; see [EXPERIMENT.md](EXPERIMENT.md).
+llama.cpp. **No Python is used to build or run the application.** The original classifier
+evaluation report, sample images, and results remain in [EXPERIMENT.md](EXPERIMENT.md).
 
 ## Run from source
 

@@ -62,38 +62,16 @@ screenshots, animals, or specialized images. Independent sourcing does not estab
 absence from pretraining. The earlier proposed CIFAR-100 benchmark was superseded by
 the random-photo test after the task was clarified; no CIFAR accuracy is claimed.
 
-## Reproduce
+## Retained evidence
 
-```sh
-uv venv .venv --python 3.12
-uv pip install --python .venv/bin/python -r requirements.lock \
-  --extra-index-url https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match
-.venv/bin/python download_models.py
+The original Python experiment scripts and environment have been removed. Their
+source remains in Git history. The sample images, annotations, model revision
+records, raw outputs, timings, and rendered comparison sheets remain in this repo.
+The reported timings describe the original experiment, not the current desktop app.
 
-HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 .venv/bin/python evaluate.py qwen
-HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 .venv/bin/python evaluate.py siglip
-HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 .venv/bin/python evaluate.py mobileclip
-```
+To classify your own images with the native app, follow the [README](README.md).
 
-The downloaded photos are retained, so rerunning does not need an image service.
-`download_samples.py` can fetch the same seed sequence again, but the retained hashes
-are authoritative if the service changes. `download_models.py` pins model revisions.
-Inference uses local files and was run with Hugging Face offline mode enabled.
-
-## Use your own images
-
-```sh
-.venv/bin/python classify.py /path/to/photo.jpg
-.venv/bin/python classify.py /path/to/photo.jpg --labels landscape vehicle food animal
-.venv/bin/python classify.py /path/to/photo.jpg --model mobileclip --labels landscape vehicle food animal
-```
-
-The second command asks Qwen for tags, a caption, and one of your categories, or null
-if none fits. The third command ranks your labels using MobileCLIP2. MobileCLIP
-always ranks the supplied labels, even if none describes the image; its score is not
-a probability. Each command loads the model on each invocation. For bulk processing, keep a
-single loaded model as `evaluate.py` does. JSON output is requested through prompting,
-not constrained decoding; applications should validate it.
+## Inference settings
 
 Qwen uses BF16 and greedy generation, up to 160 new tokens in the evaluation.
 The encoders use FP32 and cache text embeddings. All use eight CPU threads.
@@ -118,9 +96,3 @@ similarities and produced invalid predictions. An earlier attempt also used defa
 CLIP image normalization instead of this model's 0-to-1 input normalization. These
 setup errors were fixed before the reported comparison. No labels or prompts were
 tuned in response to model predictions.
-
-To regenerate the annotated sheets after evaluation:
-
-```sh
-.venv/bin/python render_results.py
-```

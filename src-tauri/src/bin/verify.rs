@@ -1,6 +1,6 @@
 //! Exercise the same database, model download, and native inference used by the desktop.
 use anyhow::{Context, Result};
-use image_shelf::{
+use image_tag_manager::{
     db::{Db, Search},
     inference::{self, Server},
 };

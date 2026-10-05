@@ -16,7 +16,7 @@ async function request(method, path, body) {
 const session = await request('POST', '/session', {
   capabilities: {
     alwaysMatch: {
-      'tauri:options': { application: resolve('.test-tools/package/usr/bin/image-shelf') },
+      'tauri:options': { application: resolve('.test-tools/package/usr/bin/image-tag-manager') },
     },
   },
 });
@@ -37,7 +37,7 @@ try {
   let loaded = false;
   for (let i = 0; i < 20; i++) {
     const body = await execute('return document.body.innerText');
-    if (body.includes('Image Shelf')) {
+    if (body.includes('Image Tag Manager')) {
       loaded = true;
       break;
     }

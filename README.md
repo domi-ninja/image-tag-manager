@@ -1,4 +1,4 @@
-# Image Shelf
+# Image Tag Manager
 
 A local image library for Windows and Linux. Add multiple folders, let Qwen generate
 searchable tags and captions, and find images through a SQLite full-text index.
@@ -29,15 +29,16 @@ macOS has not been tested.
 ## Install on Linux
 
 Run `./scripts/install-linux.sh` from this checkout after installing the build
-prerequisites above. It builds a release and installs Image Shelf for your current
+prerequisites above. It builds a release and installs Image Tag Manager for your current
 user, including the model runtime, icons, and an application-menu entry. No sudo
 is needed. To install an already-built release, use `./scripts/install-linux.sh --no-build`.
 
-Launch **Image Shelf** from your application menu or run `~/.local/bin/image-shelf`.
+Launch **Image Tag Manager** from your application menu or run `~/.local/bin/image-tag-manager`.
 Rerun the installer to update. The installed files live in
-`${XDG_DATA_HOME:-~/.local/share}/image-shelf-desktop`; the desktop entry and icons
+`${XDG_DATA_HOME:-~/.local/share}/image-tag-manager-desktop`; the desktop entry and icons
 use the same data directory. Your indexed library, settings, and downloaded models
-remain in the separate `com.domi.imageshelf` data directory. The installed app does
+remain in the separate `com.domi.imageshelf` data directory. This identifier stays
+stable across the app rename so existing libraries and models continue to work. The installed app does
 not depend on this checkout remaining in place.
 
 ## Use

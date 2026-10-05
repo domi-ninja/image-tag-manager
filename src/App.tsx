@@ -107,7 +107,7 @@ export default function App() {
   const failure =
     error ||
     (folders.error
-      ? 'The desktop service is unavailable. Open Image Shelf with pnpm desktop.'
+      ? 'The desktop service is unavailable. Open Image Tag Manager with pnpm desktop.'
       : photos.error
         ? message(photos.error)
         : '');
@@ -122,7 +122,7 @@ export default function App() {
       <header className="flex h-14 shrink-0 items-center justify-between gap-4 border-b px-4">
         <h1 className="flex items-center gap-3 font-semibold">
           <Images className="size-5 text-primary" aria-hidden />
-          Image Shelf
+          Image Tag Manager
         </h1>
         <span className="text-muted-foreground">Local image library · Qwen · 8 CPU threads</span>
       </header>

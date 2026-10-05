@@ -1,9 +1,9 @@
 [package]
-name = "image-shelf"
+name = "image-tag-manager"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.92"
-default-run = "image-shelf"
+default-run = "image-tag-manager"
 
 [features]
 default = []
@@ -41,6 +41,6 @@ libc = "0.2"
 windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Security", "Win32_System_JobObjects", "Win32_System_Threading"] }
 
 [[bin]]
-name = "image-shelf"
+name = "image-tag-manager"
 path = "src/main.rs"
 required-features = ["desktop"]

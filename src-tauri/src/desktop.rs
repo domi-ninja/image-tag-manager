@@ -224,7 +224,7 @@ pub fn run() {
             image_action
         ])
         .build(tauri::generate_context!())
-        .expect("Could not initialize Image Shelf");
+        .expect("Could not initialize Image Tag Manager");
     app.run(|handle, event| {
         if let tauri::RunEvent::Exit = event {
             handle.state::<AppState>().shutdown();

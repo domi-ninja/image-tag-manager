@@ -1907,7 +1907,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "image-shelf"
+name = "image-tag-manager"
 version = "0.1.0"
 dependencies = [
  "anyhow",

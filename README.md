@@ -34,7 +34,7 @@ user, including the model runtime, icons, and an application-menu entry. No sudo
 is needed. To install an already-built release, use `./scripts/install-linux.sh --no-build`.
 
 Launch **Image Tag Manager** from your application menu or run `~/.local/bin/image-tag-manager`.
-Rerun the installer to update. The installed files live in
+The installer uses a user-writable AppImage, enabling in-app updates. The installed files live in
 `${XDG_DATA_HOME:-~/.local/share}/image-tag-manager-desktop`; the desktop entry and icons
 use the same data directory. Your indexed library, settings, and downloaded models
 remain in the separate `com.domi.imageshelf` data directory. This identifier stays
@@ -183,6 +183,31 @@ Artifacts are in `src-tauri/target/release/bundle/`. Build Windows installers on
 Windows and Linux packages on Linux. `.github/workflows/build.yml` builds both and
 uploads installers as workflow artifacts. Windows artifacts are unsigned; code signing
 is not configured. Model weights download on first use and are not in the installer.
+
+## Automatic updates
+
+The app checks GitHub Releases at startup. Choose **Download update** to download
+and verify it while continuing to use the library. **Update ready** means it will
+activate on the next launch, without requiring another network connection.
+Linux replaces its AppImage and restarts; Windows launches the per-user NSIS
+installer silently and reopens the updated app. A failed activation is not retried
+in a loop: open the existing app and download the update again. Deb/MSI installs
+do not support this update path; use AppImage/NSIS releases.
+
+To release, bump the version in package.json, src-tauri/Cargo.toml, and
+src-tauri/tauri.conf.json together (and update Cargo.lock). Commit, tag with
+`v<version>`, then push the commit and tag to the GitHub remote.
+The release workflow builds Linux x64 and Windows x64, signs update packages,
+and publishes the draft only after both succeed. It generates latest.json for
+the app's update endpoint. Until the first release is published, update checks
+will report that the endpoint is unavailable.
+
+The public verification key is committed in tauri.conf.json. The private signing
+key is configured as the GitHub secret TAURI_SIGNING_PRIVATE_KEY; its local backup
+is ~/.config/image-tag-manager/update.key. Keep this key backed up privately:
+existing installs cannot accept releases signed by a different key. Update
+signatures are separate from Windows Authenticode certificates; Windows may
+still show SmartScreen warnings for a first installation.
 
 ## Validation
 

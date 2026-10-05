@@ -73,6 +73,24 @@ test.beforeEach(async ({ page }) => {
         return { id, name, sources: ['user'] };
       }
       const invoke = async (command: string, args: Record<string, unknown> = {}) => {
+        if (command === 'update_status')
+          return {
+            phase: sessionStorage.getItem('update-phase') ?? 'idle',
+            version: '0.2.0',
+            downloaded: 10,
+            total: 100,
+            error: null,
+          };
+        if (command === 'check_update') {
+          sessionStorage.setItem('update-phase', 'available');
+          return;
+        }
+        if (command === 'download_update') {
+          sessionStorage.setItem('update-phase', 'downloading');
+          await new Promise((resolve) => setTimeout(resolve, 1600));
+          sessionStorage.setItem('update-phase', 'ready');
+          return;
+        }
         if (command === 'preview') {
           previewRequests.push(Number(args.id));
           document.body.dataset.previewRequests = JSON.stringify(previewRequests);
@@ -831,4 +849,13 @@ test('detail image zooms at the pointer, pans, stays bounded, and resets on navi
     await dialog.getByRole('button', { name: 'Zoom in', exact: true }).click();
   await expect(zoom).toHaveText('800%');
   await expect(dialog.getByRole('button', { name: 'Zoom in', exact: true })).toBeDisabled();
+});
+
+test('downloads an update while the library stays usable', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Check for updates' }).click();
+  await page.getByRole('button', { name: 'Download update' }).click();
+  await expect(page.getByText('Downloading update 10%')).toBeVisible();
+  await expect(page.getByPlaceholder('Search images or #tags…')).toBeEnabled();
+  await expect(page.getByText('Update ready · applies next launch')).toBeVisible();
 });

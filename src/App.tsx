@@ -1,3 +1,4 @@
+import { AppUpdates } from './components/app-updates';
 import { useDeferredValue, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { open } from '@tauri-apps/plugin-dialog';
@@ -119,12 +120,15 @@ export default function App() {
       >
         Skip to images
       </a>
-      <header className="flex h-14 shrink-0 items-center justify-between gap-4 border-b px-4">
+      <header className="flex min-h-14 shrink-0 flex-wrap items-center justify-between gap-2 border-b px-4 py-2">
         <h1 className="flex items-center gap-3 font-semibold">
           <Images className="size-5 text-primary" aria-hidden />
           Image Tag Manager
         </h1>
-        <span className="text-muted-foreground">Local image library · Qwen · 8 CPU threads</span>
+        <span className="hidden text-muted-foreground 2xl:block">
+          Local image library · Qwen · 8 CPU threads
+        </span>
+        <AppUpdates />
       </header>
       <div className="flex min-h-0 flex-1">
         <aside className="flex w-60 shrink-0 flex-col border-r bg-white/40">

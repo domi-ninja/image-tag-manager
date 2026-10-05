@@ -8,7 +8,7 @@ case "${1:-}" in
   '') ;;
   --no-build) build=false ;;
   --help|-h)
-    printf 'Usage: %s [--no-build]\nInstalls Image Tag Manager for the current user in ~/.local.\nUse --no-build to install the existing release binary and runtime.\n' "$0"
+    printf 'Usage: %s [--no-build]\nInstalls Image Tag Manager for the current user in ~/.local.\nUse --no-build to install the existing release AppImage.\n' "$0"
     exit 0 ;;
   *) printf 'Unknown argument: %s\n' "$1" >&2; exit 1 ;;
 esac
@@ -20,18 +20,14 @@ if "$build"; then
   cd -- "$repo_dir"
   pnpm install --frozen-lockfile
   [[ -x src-tauri/runtime/llama-server ]] || pnpm prepare:runtime
-  pnpm tauri build --no-bundle
+  pnpm tauri build --bundles appimage
 fi
 
-binary="$repo_dir/src-tauri/target/release/image-tag-manager"
-runtime="$repo_dir/src-tauri/runtime"
-[[ -x "$binary" && -x "$runtime/llama-server" ]] || {
-  echo 'Release binary or model runtime missing. Run this script without --no-build.' >&2; exit 1;
-}
-missing=$(ldd "$binary" | awk '/not found/ {print $1}')
-[[ -z "$missing" ]] || {
-  printf 'Install the missing system libraries before retrying:\n%s\n' "$missing" >&2; exit 1;
-}
+shopt -s nullglob
+version=$(node -p 'JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")).version' "$repo_dir/src-tauri/tauri.conf.json")
+packages=("$repo_dir"/src-tauri/target/release/bundle/appimage/*_"$version"_*.AppImage)
+[[ ${#packages[@]} == 1 ]] || { echo 'Build an AppImage for the current version before installing.' >&2; exit 1; }
+binary="${packages[0]}"
 
 data_dir="${XDG_DATA_HOME:-$HOME/.local/share}"
 install_root="$data_dir/image-tag-manager-desktop"
@@ -40,19 +36,9 @@ applications="$data_dir/applications"
 mkdir -p -- "$install_root" "$bin_dir" "$applications"
 staging=$(mktemp -d "$install_root/.install.XXXXXX")
 trap 'rm -rf -- "$staging"' EXIT
-mkdir -p -- "$staging/app/bin" "$staging/app/lib/Image Tag Manager/runtime"
-install -m 755 "$binary" "$staging/app/bin/image-tag-manager"
-cp -a -- "$runtime/." "$staging/app/lib/Image Tag Manager/runtime/"
-
-# Tauri resolves resources relative to the installed binary's ../lib/Image Tag Manager directory.
-if [[ -e "$install_root/app" ]]; then
-  mv -- "$install_root/app" "$staging/previous"
-fi
-if ! mv -- "$staging/app" "$install_root/app"; then
-  [[ ! -e "$staging/previous" ]] || mv -- "$staging/previous" "$install_root/app"
-  exit 1
-fi
-ln -sfn -- "$install_root/app/bin/image-tag-manager" "$bin_dir/image-tag-manager"
+install -m 755 "$binary" "$staging/image-tag-manager.AppImage"
+mv -f -- "$staging/image-tag-manager.AppImage" "$install_root/image-tag-manager.AppImage"
+ln -sfn -- "$install_root/image-tag-manager.AppImage" "$bin_dir/image-tag-manager"
 for size in 32 128; do
   icon_dir="$data_dir/icons/hicolor/${size}x${size}/apps"
   mkdir -p -- "$icon_dir"
@@ -88,7 +74,7 @@ if [[ -f "$applications/image-shelf.desktop" ]] && grep -qx 'Name=Image Shelf' "
   rm -- "$applications/image-shelf.desktop"
 fi
 if [[ -L "$bin_dir/image-shelf" ]]; then
-  ln -sfn -- "$install_root/app/bin/image-tag-manager" "$bin_dir/image-shelf"
+  ln -sfn -- "$install_root/image-tag-manager.AppImage" "$bin_dir/image-shelf"
 fi
 if command -v update-desktop-database >/dev/null; then
   update-desktop-database "$applications"

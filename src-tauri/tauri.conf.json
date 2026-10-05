@@ -1,1 +1,56 @@
-{"$schema":"https://schema.tauri.app/config/2","productName":"Image Tag Manager","version":"0.1.0","identifier":"com.domi.imageshelf","build":{"beforeDevCommand":"pnpm dev","devUrl":"http://localhost:1420","beforeBuildCommand":"pnpm build","frontendDist":"../dist","features":["desktop"]},"app":{"windows":[{"title":"Image Tag Manager","width":1280,"height":850,"minWidth":820,"minHeight":580}],"security":{"csp":"default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; connect-src ipc: http://ipc.localhost; script-src 'self'"}},"bundle":{"active":true,"targets":"all","resources":["runtime/*"],"icon":["icons/32x32.png","icons/128x128.png","icons/icon.ico"]}}
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Image Tag Manager",
+  "version": "0.1.0",
+  "identifier": "com.domi.imageshelf",
+  "build": {
+    "beforeDevCommand": "pnpm dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "pnpm build",
+    "frontendDist": "../dist",
+    "features": [
+      "desktop"
+    ]
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Image Tag Manager",
+        "width": 1280,
+        "height": 850,
+        "minWidth": 820,
+        "minHeight": 580,
+        "visible": false
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; connect-src ipc: http://ipc.localhost; script-src 'self'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "resources": [
+      "runtime/*"
+    ],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser"
+      }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IENDNUQ0ODJBQzE2OUQ4QTYKUldTbTJHbkJLa2hkekZISXBBRGt1WUFvcW93dkVITmNEcE5vdnF6RlM5blV4MW9kUUlVam5qTTYK",
+      "endpoints": [
+        "https://github.com/domi-ninja/image-tag-manager/releases/latest/download/latest.json"
+      ],
+      "requireSignedVersion": true
+    }
+  }
+}

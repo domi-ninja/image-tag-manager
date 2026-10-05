@@ -8,3 +8,6 @@ mod process;
 pub mod tags;
 
 mod migrations;
+
+#[cfg(feature = "desktop")]
+mod updates;

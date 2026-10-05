@@ -179,15 +179,19 @@ pub fn run() {
                 let _ = window.set_focus();
             }
         }))
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::Destroyed = event {
-                window.state::<AppState>().shutdown();
+                if let Some(engine) = window.try_state::<AppState>() {
+                    engine.shutdown();
+                }
             }
         })
         .setup(|app| {
+            crate::updates::initialize(app.handle());
             let root = app.path().app_data_dir()?;
             let db = Db::new(root)?;
             let mut runtime = app.path().resource_dir()?.join("runtime");
@@ -197,9 +201,15 @@ pub fn run() {
             let engine = Engine::new(db, runtime);
             engine.monitor();
             app.manage(engine);
+            if let Some(window) = app.get_webview_window("main") {
+                window.show()?;
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            crate::updates::update_status,
+            crate::updates::check_update,
+            crate::updates::download_update,
             folders,
             add_folder,
             save_folder,
@@ -227,7 +237,9 @@ pub fn run() {
         .expect("Could not initialize Image Tag Manager");
     app.run(|handle, event| {
         if let tauri::RunEvent::Exit = event {
-            handle.state::<AppState>().shutdown();
+            if let Some(engine) = handle.try_state::<AppState>() {
+                engine.shutdown();
+            }
         }
     });
 }

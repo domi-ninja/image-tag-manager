@@ -19,6 +19,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { api, type Filter, type Folder, type Photo } from './lib/api';
+import { ZoomablePreview } from './components/zoomable-preview';
 import { VirtualPhotoGrid } from './components/virtual-photo-grid';
 import { ImageSearch } from './components/image-search';
 import { appendTagSearch, parseSearch } from './lib/search';
@@ -828,37 +829,13 @@ function PhotoDialog({
               : 'grid-cols-1 grid-rows-1',
           )}
         >
-          <PhotoContextMenu photoId={photo.id} onError={setContextError}>
-            <div
-              aria-label="Image preview"
-              className="relative grid min-h-0 min-w-0 place-items-center overflow-hidden bg-muted"
-              aria-busy={previews.loading || navigating}
-            >
-              {previews.displayed && (
-                <img
-                  src={previews.displayed.src}
-                  alt={previews.displayed.photo.caption || previews.displayed.photo.filename}
-                  className="block size-full object-contain"
-                />
-              )}
-              {(previews.loading || navigating) && (
-                <div
-                  role="status"
-                  aria-label="Loading preview"
-                  className="absolute inset-0 grid place-items-center bg-black/10"
-                >
-                  <span className="rounded-full bg-background/90 p-3 shadow">
-                    <LoaderCircle aria-hidden className="size-6 motion-safe:animate-spin" />
-                  </span>
-                </div>
-              )}
-              {previews.failed && (
-                <p role="alert" className="absolute bottom-4 rounded bg-background/95 p-3">
-                  Image could not be opened. It may have moved.
-                </p>
-              )}
-            </div>
-          </PhotoContextMenu>
+          <ZoomablePreview
+            photoId={photo.id}
+            displayed={previews.displayed}
+            loading={previews.loading || navigating}
+            failed={previews.failed}
+            onError={setContextError}
+          />
           <form
             id="image-details"
             className={cn(

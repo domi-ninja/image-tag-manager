@@ -781,3 +781,54 @@ test('viewer preloads ten neighbors each way and retains the previous image duri
   await expect(stage).toHaveAttribute('aria-busy', 'false');
   await expect(stage.locator('img')).toHaveAttribute('src', previousSrc!);
 });
+
+test('detail image zooms at the pointer, pans, stays bounded, and resets on navigation', async ({
+  page,
+}) => {
+  await page
+    .getByRole('button', { name: 'Open 01.jpg', exact: true })
+    .click({ position: { x: 8, y: 8 } });
+  const dialog = page.getByRole('dialog');
+  const stage = dialog.getByLabel('Image preview', { exact: true });
+  await expect(stage).toHaveAttribute('aria-busy', 'false');
+  const zoom = dialog.getByLabel('Zoom level', { exact: true });
+  await expect(zoom).toHaveText('100%');
+  const rect = (await stage.boundingBox())!;
+  const x = rect.x + rect.width * 0.65;
+  const y = rect.y + rect.height * 0.5;
+  await page.mouse.move(x, y);
+  await page.mouse.wheel(0, -350);
+  await expect(zoom).not.toHaveText('100%');
+  const transform = () =>
+    stage.locator('img').evaluate((img) => {
+      const matrix = new DOMMatrix(getComputedStyle(img).transform);
+      return { scale: matrix.a, x: matrix.e, y: matrix.f };
+    });
+  const before = await transform();
+  expect(before.scale).toBeGreaterThan(1.9);
+  expect(before.x).toBeLessThan(0);
+  await page.mouse.down();
+  await page.mouse.move(x + 80, y + 40, { steps: 4 });
+  await page.mouse.up();
+  const after = await transform();
+  expect(after.x).toBeCloseTo(before.x + 80, 0);
+  expect(after.y).toBeCloseTo(before.y + 40, 0);
+  await page.screenshot({ path: 'test-results/viewer-zoom-pan.png' });
+  await dialog.getByRole('button', { name: 'Fit', exact: true }).click();
+  await expect(zoom).toHaveText('100%');
+  expect(await transform()).toEqual({ scale: 1, x: 0, y: 0 });
+  await stage.focus();
+  await page.keyboard.press('+');
+  await expect(zoom).toHaveText('125%');
+  await page.keyboard.press('0');
+  await expect(zoom).toHaveText('100%');
+  await stage.dblclick({ position: { x: 100, y: 100 } });
+  await expect(zoom).toHaveText('200%');
+  await page.keyboard.press('ArrowRight');
+  await expect(dialog.getByRole('heading')).toHaveText('02.jpg');
+  await expect(zoom).toHaveText('100%');
+  for (let i = 0; i < 10; i++)
+    await dialog.getByRole('button', { name: 'Zoom in', exact: true }).click();
+  await expect(zoom).toHaveText('800%');
+  await expect(dialog.getByRole('button', { name: 'Zoom in', exact: true })).toBeDisabled();
+});

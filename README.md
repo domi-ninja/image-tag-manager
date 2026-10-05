@@ -66,6 +66,10 @@ not depend on this checkout remaining in place.
    loads, the previous image stays visible beneath a spinner. The cache follows
    the current result and is released when the viewer closes; background loading
    is limited to two requests at a time.
+   Scroll over the image to zoom toward the pointer, then drag to pan. Double-click
+   toggles fit/2×; the image toolbar provides zoom and **Fit** controls. With the
+   image focused, use **+ / -** to zoom, **0** to fit, and **Shift+arrows** to pan.
+   Zoom resets when changing images and is limited to 8× the fitted size.
    **Trash** or **Delete** moves the original file immediately to the system trash
    (Recycle Bin on Windows), without confirmation, then shows the next result or
    the previous result at the end. Unsaved edits are discarded when trashing.
@@ -209,7 +213,7 @@ the resulting index. It does not call Python or a hosted model API.
 
 - Linux Debian installer built successfully, approximately 38 MB including the CPU runtime.
 - Twenty Rust database/worker tests, an isolated Linux trash integration test,
-  fifteen browser interaction tests, and a search parser test passed; TypeScript build
+  sixteen browser interaction tests, and a search parser test passed; TypeScript build
   and Rust clippy passed.
 - The extracted Debian app ran in native WebKit through WebDriver. Real Qwen inference
   with configured categories reached SQLite, tag search returned the indexed results,

@@ -19,8 +19,7 @@ if "$build"; then
   command -v pnpm >/dev/null || { echo 'Install pnpm and the build prerequisites documented in README.md.' >&2; exit 1; }
   cd -- "$repo_dir"
   pnpm install --frozen-lockfile
-  [[ -x src-tauri/runtime/llama-server ]] || pnpm prepare:runtime
-  pnpm tauri build --bundles appimage
+  pnpm build --bundles appimage
 fi
 
 shopt -s nullglob

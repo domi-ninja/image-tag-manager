@@ -108,7 +108,7 @@ export default function App() {
   const failure =
     error ||
     (folders.error
-      ? 'The desktop service is unavailable. Open Image Tag Manager with pnpm desktop.'
+      ? 'The desktop service is unavailable. Open the installed Image Tag Manager app.'
       : photos.error
         ? message(photos.error)
         : '');

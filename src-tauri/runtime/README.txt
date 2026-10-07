@@ -1,1 +1,1 @@
-Run pnpm prepare:runtime before packaging. This directory holds the platform-specific llama.cpp server and its libraries.
+Development and release builds prepare this directory automatically. It holds the platform-specific llama.cpp server and its libraries.

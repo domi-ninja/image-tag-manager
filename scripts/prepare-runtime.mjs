@@ -1,4 +1,4 @@
-import { mkdir, readdir, copyFile, rm, writeFile, chmod } from 'node:fs/promises';
+import { mkdir, readFile, access, readdir, copyFile, rm, writeFile, chmod } from 'node:fs/promises';
 import { createWriteStream } from 'node:fs';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
@@ -17,6 +17,17 @@ if (!target)
     'No bundled runtime for this OS/architecture. Supported: Windows/Linux x64, macOS arm64/x64.',
   );
 const dir = path.resolve('src-tauri/runtime');
+const stamp = `${tag}/${process.platform}/${process.arch}`;
+const executable = process.platform === 'win32' ? 'llama-server.exe' : 'llama-server';
+try {
+  if ((await readFile(path.join(dir, 'platform-version.txt'), 'utf8')).trim() === stamp) {
+    await access(path.join(dir, executable));
+    console.log(`Runtime already prepared: ${stamp}`);
+    process.exit(0);
+  }
+} catch (error) {
+  if (error.code !== 'ENOENT') throw error;
+}
 const staging = path.resolve('.runtime-download');
 await mkdir(staging, { recursive: true });
 const archive = path.join(staging, target);
@@ -36,7 +47,9 @@ if (target.endsWith('.zip'))
       '-Command',
       'Expand-Archive -LiteralPath $env:IMAGE_TAG_MANAGER_ARCHIVE -DestinationPath $env:IMAGE_TAG_MANAGER_UNPACK -Force',
     ],
-    { env: { ...process.env, IMAGE_TAG_MANAGER_ARCHIVE: archive, IMAGE_TAG_MANAGER_UNPACK: unpack } },
+    {
+      env: { ...process.env, IMAGE_TAG_MANAGER_ARCHIVE: archive, IMAGE_TAG_MANAGER_UNPACK: unpack },
+    },
   );
 else execFileSync('tar', ['-xzf', archive, '-C', unpack]);
 await mkdir(dir, { recursive: true });
@@ -55,5 +68,7 @@ const license = await fetch(`https://raw.githubusercontent.com/ggml-org/llama.cp
 if (!license.ok) throw new Error('Could not retrieve runtime license');
 await writeFile(path.join(dir, 'LLAMA-LICENSE.txt'), await license.text());
 await writeFile(path.join(dir, 'version.txt'), `${tag}\n`);
+await access(path.join(dir, executable));
+await writeFile(path.join(dir, 'platform-version.txt'), `${stamp}\n`);
 await rm(staging, { recursive: true, force: true });
 console.log(`Runtime ready in ${dir}`);

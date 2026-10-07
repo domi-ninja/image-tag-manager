@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "identifier": "ninja.domi.image-tag-manager",
   "build": {
-    "beforeDevCommand": "pnpm dev",
+    "beforeDevCommand": "pnpm prepare:runtime && pnpm dev:web",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "pnpm build",
+    "beforeBuildCommand": "pnpm prepare:runtime && pnpm build:web",
     "frontendDist": "../dist",
     "features": [
       "desktop"

@@ -31,6 +31,7 @@ import { Input, Textarea } from './components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from './components/ui/dialog';
 import { cn } from './lib/utils';
 import { useThumbnailSize } from './lib/use-thumbnail-size';
+import { useMiddleDragScroll } from './lib/use-middle-drag-scroll';
 import { useViewerPreviews } from './lib/use-viewer-previews';
 import { loadThumbnail } from './lib/thumbnail-loader';
 import { useIndexUpdates } from './lib/use-index-updates';
@@ -49,6 +50,7 @@ export default function App() {
   const [error, setError] = useState('');
   const [tagManager, setTagManager] = useState(false);
   const thumbnails = useThumbnailSize(!selected && !folderEdit && !tagManager);
+  useMiddleDragScroll(thumbnails.galleryRef);
   const status = useQuery({ queryKey: ['status'], queryFn: api.status, refetchInterval: 1000 });
   useIndexUpdates(status.data);
   const busy = status.data?.busy ?? false;

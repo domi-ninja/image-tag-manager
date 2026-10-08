@@ -845,6 +845,37 @@ test('endless scrolling unloads old tiles and thumbnails and restores them on re
   expect(await library.evaluate((element) => element.scrollTop)).toBe(0);
 });
 
+test('middle-button drag scrolls continuously in either direction and stops on release', async ({
+  page,
+}) => {
+  await page.evaluate(() => sessionStorage.setItem('large-library', 'true'));
+  await page.reload();
+  const library = page.getByLabel('Image library', { exact: true });
+  await expect(library.getByRole('button', { name: 'Open image-1.jpg' })).toBeVisible();
+  const bounds = (await library.boundingBox())!;
+  const x = bounds.x + bounds.width / 2;
+  const y = bounds.y + bounds.height / 2;
+  const scrollTop = () => library.evaluate((element) => element.scrollTop);
+
+  await page.mouse.move(x, y);
+  await page.mouse.down({ button: 'middle' });
+  await page.mouse.move(x, y + 150);
+  await expect.poll(scrollTop).toBeGreaterThan(100);
+  const firstPosition = await scrollTop();
+  await expect.poll(scrollTop).toBeGreaterThan(firstPosition + 100);
+  await page.mouse.up({ button: 'middle' });
+  const releasedPosition = await scrollTop();
+  await page.waitForTimeout(150);
+  expect(await scrollTop()).toBeCloseTo(releasedPosition, 0);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+
+  await page.mouse.move(x, y);
+  await page.mouse.down({ button: 'middle' });
+  await page.mouse.move(x, y - 150);
+  await expect.poll(scrollTop).toBeLessThan(releasedPosition - 100);
+  await page.mouse.up({ button: 'middle' });
+});
+
 test('detail arrows follow search order, cross pages, and protect edits', async ({ page }) => {
   await page.evaluate(() => sessionStorage.setItem('large-library', 'true'));
   await page.reload();

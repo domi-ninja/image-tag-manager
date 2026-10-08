@@ -67,6 +67,16 @@ fn delete_tag(s: State<AppState>, id: i64) -> Response<()> {
     s.db.delete_tag(id).map_err(err)
 }
 #[tauri::command]
+fn set_tag_options(
+    s: State<AppState>,
+    id: i64,
+    hidden_from_search: bool,
+    disable_tagging: bool,
+) -> Response<()> {
+    s.db.set_tag_options(id, hidden_from_search, disable_tagging)
+        .map_err(err)
+}
+#[tauri::command]
 fn purge_orphan_tags(s: State<AppState>) -> Response<usize> {
     s.db.purge_orphan_tags().map_err(err)
 }
@@ -237,6 +247,7 @@ pub fn run() {
             tag_suggestions,
             rename_tag,
             delete_tag,
+            set_tag_options,
             purge_orphan_tags,
             stats,
             status,

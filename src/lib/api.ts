@@ -38,6 +38,7 @@ export interface PhotoTag {
   id: number;
   name: string;
   sources: TagSource[];
+  hiddenFromSearch: boolean;
 }
 export interface TagPage {
   tags: Tag[];
@@ -48,6 +49,8 @@ export interface Tag {
   id: number;
   name: string;
   count: number;
+  hiddenFromSearch: boolean;
+  disableTagging: boolean;
 }
 export interface Stats {
   total: number;
@@ -96,6 +99,8 @@ export const api = {
     invoke<Tag[]>('tag_suggestions', { query, prefix }),
   renameTag: (id: number, name: string) => invoke<void>('rename_tag', { id, name }),
   deleteTag: (id: number) => invoke<void>('delete_tag', { id }),
+  setTagOptions: (id: number, hiddenFromSearch: boolean, disableTagging: boolean) =>
+    invoke<void>('set_tag_options', { id, hiddenFromSearch, disableTagging }),
   purgeOrphanTags: () => invoke<number>('purge_orphan_tags'),
   stats: () => invoke<Stats>('stats'),
   status: () => invoke<Status>('status'),

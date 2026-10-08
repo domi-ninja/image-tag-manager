@@ -12,16 +12,21 @@ pub enum TagSource {
     Folder,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PhotoTag {
     pub id: i64,
     pub name: String,
     pub sources: Vec<TagSource>,
+    pub hidden_from_search: bool,
 }
 #[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct Tag {
     pub id: i64,
     pub name: String,
     pub count: i64,
+    pub hidden_from_search: bool,
+    pub disable_tagging: bool,
 }
 #[derive(Serialize)]
 pub struct TagPage {
@@ -40,13 +45,13 @@ pub fn tag_id(c: &Connection, name: &str) -> Result<i64> {
 pub fn attach(c: &Connection, image: i64, name: &str, source: &str) -> Result<()> {
     let id = tag_id(c, name)?;
     c.execute(
-        "INSERT OR IGNORE INTO image_tags(image_id,tag_id,source) VALUES(?1,?2,?3)",
+        "INSERT OR IGNORE INTO image_tags(image_id,tag_id,source) SELECT ?1,id,?3 FROM tags WHERE id=?2 AND disable_tagging=0",
         params![image, id, source],
     )?;
     Ok(())
 }
 pub fn photo_tags(c: &Connection, image: i64) -> Result<Vec<PhotoTag>> {
-    let mut stmt = c.prepare("SELECT t.id,t.name,group_concat(it.source) FROM image_tags it JOIN tags t ON t.id=it.tag_id WHERE it.image_id=?1 GROUP BY t.id ORDER BY t.name")?;
+    let mut stmt = c.prepare("SELECT t.id,t.name,group_concat(it.source),t.hidden_from_search FROM image_tags it JOIN tags t ON t.id=it.tag_id WHERE it.image_id=?1 GROUP BY t.id ORDER BY t.name")?;
     let rows = stmt.query_map([image], |r| {
         let sources: String = r.get(2)?;
         Ok(PhotoTag {
@@ -61,6 +66,7 @@ pub fn photo_tags(c: &Connection, image: i64) -> Result<Vec<PhotoTag>> {
                     _ => Err(rusqlite::Error::InvalidQuery),
                 })
                 .collect::<rusqlite::Result<_>>()?,
+            hidden_from_search: r.get(3)?,
         })
     })?;
     Ok(rows.collect::<rusqlite::Result<_>>()?)
@@ -79,6 +85,11 @@ pub fn folder_names(root: &str, path: &str) -> Vec<String> {
             .filter_map(|part| match part {
                 std::path::Component::Normal(name) => Some(name.to_string_lossy().into_owned()),
                 _ => None,
+            })
+            .flat_map(|name| {
+                name.split_whitespace()
+                    .map(str::to_owned)
+                    .collect::<Vec<_>>()
             })
             .collect(),
     )
@@ -109,12 +120,14 @@ pub fn sync_folder_tags(c: &Connection, image: i64, root: &str, path: &str) -> R
 impl Db {
     pub fn tags(&self, folder: Option<i64>) -> Result<Vec<Tag>> {
         let c = self.connect()?;
-        let mut stmt=c.prepare("SELECT t.id,t.name,count(DISTINCT it.image_id) FROM tags t JOIN image_tags it ON it.tag_id=t.id JOIN images i ON i.id=it.image_id WHERE ?1 IS NULL OR i.folder_id=?1 GROUP BY t.id ORDER BY count(DISTINCT it.image_id) DESC,t.name LIMIT 80")?;
+        let mut stmt=c.prepare("SELECT t.id,t.name,count(DISTINCT it.image_id),t.hidden_from_search,t.disable_tagging FROM tags t JOIN image_tags it ON it.tag_id=t.id JOIN images i ON i.id=it.image_id WHERE t.hidden_from_search=0 AND (?1 IS NULL OR i.folder_id=?1) GROUP BY t.id ORDER BY count(DISTINCT it.image_id) DESC,t.name LIMIT 80")?;
         let rows = stmt.query_map([folder], |r| {
             Ok(Tag {
                 id: r.get(0)?,
                 name: r.get(1)?,
                 count: r.get(2)?,
+                hidden_from_search: r.get(3)?,
+                disable_tagging: r.get(4)?,
             })
         })?;
         Ok(rows.collect::<rusqlite::Result<_>>()?)
@@ -123,20 +136,22 @@ impl Db {
         let mut c = self.connect()?;
         let tx = c.transaction()?;
         let query = query.trim().to_lowercase();
-        let condition="instr(t.name,?1)>0 AND (?2=0 OR NOT EXISTS(SELECT 1 FROM image_tags it WHERE it.tag_id=t.id))";
+        let condition="instr(t.name,?1)>0 AND (?2=0 OR (t.hidden_from_search=0 AND t.disable_tagging=0 AND NOT EXISTS(SELECT 1 FROM image_tags it WHERE it.tag_id=t.id)))";
         let total = tx.query_row(
             &format!("SELECT count(*) FROM tags t WHERE {condition}"),
             params![query, orphans_only],
             |r| r.get(0),
         )?;
-        let orphans=tx.query_row("SELECT count(*) FROM tags t WHERE NOT EXISTS(SELECT 1 FROM image_tags it WHERE it.tag_id=t.id)",[],|r|r.get(0))?;
+        let orphans=tx.query_row("SELECT count(*) FROM tags t WHERE t.hidden_from_search=0 AND t.disable_tagging=0 AND NOT EXISTS(SELECT 1 FROM image_tags it WHERE it.tag_id=t.id)",[],|r|r.get(0))?;
         let tags = {
-            let mut stmt=tx.prepare(&format!("SELECT t.id,t.name,(SELECT count(DISTINCT image_id) FROM image_tags it WHERE it.tag_id=t.id) FROM tags t WHERE {condition} ORDER BY t.name LIMIT 50 OFFSET ?3"))?;
+            let mut stmt=tx.prepare(&format!("SELECT t.id,t.name,(SELECT count(DISTINCT image_id) FROM image_tags it WHERE it.tag_id=t.id),t.hidden_from_search,t.disable_tagging FROM tags t WHERE {condition} ORDER BY t.name LIMIT 50 OFFSET ?3"))?;
             let rows = stmt.query_map(params![query, orphans_only, i64::from(page) * 50], |r| {
                 Ok(Tag {
                     id: r.get(0)?,
                     name: r.get(1)?,
                     count: r.get(2)?,
+                    hidden_from_search: r.get(3)?,
+                    disable_tagging: r.get(4)?,
                 })
             })?;
             rows.collect::<rusqlite::Result<_>>()?
@@ -149,12 +164,14 @@ impl Db {
     }
     pub fn tag_suggestions(&self, query: &str, prefix: bool) -> Result<Vec<Tag>> {
         let c = self.connect()?;
-        let mut stmt=c.prepare("SELECT t.id,t.name,count(DISTINCT it.image_id) FROM tags t LEFT JOIN image_tags it ON it.tag_id=t.id WHERE (?2=0 AND instr(t.name,?1)>0) OR (?2=1 AND substr(t.name,1,length(?1))=?1) GROUP BY t.id ORDER BY (t.name=?1) DESC,count(DISTINCT it.image_id) DESC,t.name LIMIT 60")?;
+        let mut stmt=c.prepare("SELECT t.id,t.name,count(DISTINCT it.image_id),t.hidden_from_search,t.disable_tagging FROM tags t LEFT JOIN image_tags it ON it.tag_id=t.id WHERE (?2=0 AND instr(t.name,?1)>0) OR (?2=1 AND t.hidden_from_search=0 AND t.disable_tagging=0 AND substr(t.name,1,length(?1))=?1) GROUP BY t.id ORDER BY (t.name=?1) DESC,count(DISTINCT it.image_id) DESC,t.name LIMIT 60")?;
         let rows = stmt.query_map(params![query.trim().to_lowercase(), prefix], |r| {
             Ok(Tag {
                 id: r.get(0)?,
                 name: r.get(1)?,
                 count: r.get(2)?,
+                hidden_from_search: r.get(3)?,
+                disable_tagging: r.get(4)?,
             })
         })?;
         Ok(rows.collect::<rusqlite::Result<_>>()?)
@@ -173,7 +190,30 @@ impl Db {
         if old == name {
             return Ok(());
         }
-        let target = tag_id(&tx, &name)?;
+        let existing: Option<i64> = tx
+            .query_row("SELECT id FROM tags WHERE name=?1", [&name], |r| r.get(0))
+            .optional()?;
+        let target = if let Some(target) = existing {
+            target
+        } else {
+            tx.execute("INSERT INTO tags(name,hidden_from_search,disable_tagging) SELECT ?1,hidden_from_search,disable_tagging FROM tags WHERE id=?2",params![name,id])?;
+            tx.last_insert_rowid()
+        };
+        let disabled: bool = tx.query_row(
+            "SELECT disable_tagging FROM tags WHERE id=?1",
+            [target],
+            |r| r.get(0),
+        )?;
+        if disabled {
+            let in_use: bool = tx.query_row(
+                "SELECT EXISTS(SELECT 1 FROM image_tags WHERE tag_id=?1)",
+                [id],
+                |r| r.get(0),
+            )?;
+            if in_use {
+                bail!("This tag is disabled for image tagging");
+            }
+        }
         tx.execute("INSERT OR IGNORE INTO ignored_folder_tags(image_id,name) SELECT image_id,?2 FROM image_tags WHERE tag_id=?1 AND source='folder'",params![id,old])?;
         tx.execute("INSERT OR IGNORE INTO image_tags(image_id,tag_id,source) SELECT DISTINCT image_id,?2,'user' FROM image_tags WHERE tag_id=?1",params![id,target])?;
         tx.execute("DELETE FROM tags WHERE id=?1", [id])?;
@@ -183,19 +223,40 @@ impl Db {
     pub fn delete_tag(&self, id: i64) -> Result<()> {
         let c = self.connect()?;
         let changed = c.execute(
-            "DELETE FROM tags WHERE id=?1 AND NOT EXISTS(SELECT 1 FROM image_tags WHERE tag_id=?1)",
+            "DELETE FROM tags WHERE id=?1 AND hidden_from_search=0 AND disable_tagging=0 AND NOT EXISTS(SELECT 1 FROM image_tags WHERE tag_id=?1)",
             [id],
         )?;
         if changed == 0 {
-            bail!("Only unused tags can be deleted. This tag is in use or no longer exists.");
+            bail!("Only unused tags without active options can be deleted.");
         }
         Ok(())
     }
     pub fn purge_orphan_tags(&self) -> Result<usize> {
         Ok(self.connect()?.execute(
-            "DELETE FROM tags WHERE NOT EXISTS(SELECT 1 FROM image_tags WHERE tag_id=tags.id)",
+            "DELETE FROM tags WHERE hidden_from_search=0 AND disable_tagging=0 AND NOT EXISTS(SELECT 1 FROM image_tags WHERE tag_id=tags.id)",
             [],
         )?)
+    }
+    pub fn set_tag_options(
+        &self,
+        id: i64,
+        hidden_from_search: bool,
+        disable_tagging: bool,
+    ) -> Result<()> {
+        let mut c = self.connect()?;
+        let tx = c.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        if tx.execute(
+            "UPDATE tags SET hidden_from_search=?2,disable_tagging=?3 WHERE id=?1",
+            params![id, hidden_from_search, disable_tagging],
+        )? == 0
+        {
+            bail!("Tag no longer exists");
+        }
+        if disable_tagging {
+            tx.execute("DELETE FROM image_tags WHERE tag_id=?1", [id])?;
+        }
+        tx.commit()?;
+        Ok(())
     }
 }
 
@@ -232,6 +293,70 @@ mod tests {
         })
         .unwrap()
         .total
+    }
+    #[test]
+    fn folder_names_split_on_spaces_but_keep_dashes_and_underscores() {
+        let root = Path::new("collection");
+        let image = root
+            .join("Blue  Sky")
+            .join("scifi.clothes")
+            .join("road-trip")
+            .join("snow_day")
+            .join("image.jpg");
+        let names = folder_names(root.to_str().unwrap(), image.to_str().unwrap());
+        assert_eq!(
+            names,
+            vec!["blue", "road-trip", "scifi.clothes", "sky", "snow_day"]
+        );
+    }
+    #[test]
+    fn tag_options_control_search_and_future_assignments() {
+        let (_dir, db, folder, id) = nested_fixture();
+        let photo = db.photo(id).unwrap();
+        let alps = photo.tags.iter().find(|tag| tag.name == "alps").unwrap().id;
+        let hidden_orphan = tag_id(&db.connect().unwrap(), "hidden future").unwrap();
+        db.set_tag_options(hidden_orphan, true, false).unwrap();
+
+        db.set_tag_options(alps, true, false).unwrap();
+        assert_eq!(count(&db, "alps"), 0);
+        assert_eq!(
+            db.search(&Search {
+                tags: vec!["alps".into()],
+                ..Default::default()
+            })
+            .unwrap()
+            .total,
+            0
+        );
+        assert!(db.tags(None).unwrap().iter().all(|tag| tag.id != alps));
+        assert!(db.tag_suggestions("al", true).unwrap().is_empty());
+        assert!(db.photo(id).unwrap().tags.iter().any(|tag| tag.id == alps));
+        let hidden = db.tag_catalog("alps", false, 0).unwrap().tags.remove(0);
+        assert!(hidden.hidden_from_search);
+        assert!(!hidden.disable_tagging);
+
+        db.set_tag_options(alps, true, true).unwrap();
+        assert!(db.photo(id).unwrap().tags.iter().all(|tag| tag.id != alps));
+        db.scan(&folder, &AtomicBool::new(false)).unwrap();
+        assert!(db.photo(id).unwrap().tags.iter().all(|tag| tag.id != alps));
+        db.store(
+            id,
+            classification(&["alps", "mountain"]),
+            Some(photo.modified),
+        )
+        .unwrap();
+        assert!(db.photo(id).unwrap().tags.iter().all(|tag| tag.id != alps));
+        assert!(db.store(id, classification(&["alps"]), None).is_err());
+        db.purge_orphan_tags().unwrap();
+        assert!(db.tag_catalog("alps", false, 0).unwrap().tags[0].disable_tagging);
+        assert!(db.tag_catalog("hidden future", false, 0).unwrap().tags[0].hidden_from_search);
+        assert!(db.delete_tag(alps).is_err());
+        assert!(db.delete_tag(hidden_orphan).is_err());
+
+        db.set_tag_options(alps, false, false).unwrap();
+        db.scan(&folder, &AtomicBool::new(false)).unwrap();
+        assert!(db.photo(id).unwrap().tags.iter().any(|tag| tag.id == alps));
+        assert_eq!(count(&db, "alps"), 1);
     }
     #[test]
     fn folder_and_ai_sources_share_entities_and_counts_and_manual_edits_keep_sources() {

@@ -15,6 +15,7 @@ const fixtures: Photo[] = raw.results.slice(0, 6).map((r, i) => ({
     id: tagNames.indexOf(name) + 1,
     name,
     sources: [index === 0 ? 'folder' : index === 1 ? 'user' : 'ai'],
+    hiddenFromSearch: false,
   })),
   category: null,
   status: 'classified',
@@ -58,11 +59,14 @@ test.beforeEach(async ({ page }) => {
         fixtures.flatMap((photo) => photo.tags.map((tag) => [tag.id, tag.name] as const)),
       );
       entities.set(999, 'unused old tag');
+      const tagOptions = new Map<number, Pick<Tag, 'hiddenFromSearch' | 'disableTagging'>>();
       function catalog(): Tag[] {
         return [...entities].map(([id, name]) => ({
           id,
           name,
           count: images.filter((photo) => photo.tags.some((tag) => tag.id === id)).length,
+          hiddenFromSearch: tagOptions.get(id)?.hiddenFromSearch ?? false,
+          disableTagging: tagOptions.get(id)?.disableTagging ?? false,
         }));
       }
       function ensureTag(name: string): PhotoTag {
@@ -71,7 +75,7 @@ test.beforeEach(async ({ page }) => {
           id = Math.max(...entities.keys()) + 1;
           entities.set(id, name);
         }
-        return { id, name, sources: ['user'] };
+        return { id, name, sources: ['user'], hiddenFromSearch: false };
       }
       const invoke = async (command: string, args: Record<string, unknown> = {}) => {
         if (command === 'update_status')
@@ -171,19 +175,29 @@ test.beforeEach(async ({ page }) => {
             (p) =>
               (!f.folderId || p.folderId === f.folderId) &&
               (!f.status || p.status === f.status) &&
-              (f.tags ?? []).every((name) => p.tags.some((tag) => tag.name === name)) &&
+              (f.tags ?? []).every((name) =>
+                p.tags.some(
+                  (tag) => tag.name === name && !tagOptions.get(tag.id)?.hiddenFromSearch,
+                ),
+              ) &&
               (!f.query ||
-                `${p.tags.map((tag) => tag.name).join(' ')} ${p.caption} ${p.filename}`
+                `${p.tags
+                  .filter((tag) => !tagOptions.get(tag.id)?.hiddenFromSearch)
+                  .map((tag) => tag.name)
+                  .join(' ')} ${p.caption} ${p.filename}`
                   .toLowerCase()
                   .includes(f.query.toLowerCase())),
           );
           return { images: list.slice(f.page * 48, (f.page + 1) * 48), total: list.length };
         }
-        if (command === 'tags') return catalog().filter((tag) => tag.count > 0);
+        if (command === 'tags')
+          return catalog().filter((tag) => tag.count > 0 && !tag.hiddenFromSearch);
         if (command === 'tag_suggestions')
           return catalog().filter((tag) =>
             args.prefix
-              ? tag.name.startsWith(String(args.query).toLowerCase())
+              ? !tag.hiddenFromSearch &&
+                !tag.disableTagging &&
+                tag.name.startsWith(String(args.query).toLowerCase())
               : tag.name.includes(String(args.query).toLowerCase()),
           );
         if (command === 'tag_catalog') {
@@ -191,21 +205,44 @@ test.beforeEach(async ({ page }) => {
           const filtered = all.filter(
             (tag) =>
               tag.name.includes(String(args.query).toLowerCase()) &&
-              (!args.orphansOnly || tag.count === 0),
+              (!args.orphansOnly ||
+                (tag.count === 0 && !tag.disableTagging && !tag.hiddenFromSearch)),
           );
           return {
             tags: filtered.slice(Number(args.page) * 50, (Number(args.page) + 1) * 50),
             total: filtered.length,
-            orphans: all.filter((tag) => tag.count === 0).length,
+            orphans: all.filter(
+              (tag) => tag.count === 0 && !tag.disableTagging && !tag.hiddenFromSearch,
+            ).length,
           };
         }
         if (command === 'purge_orphan_tags') {
-          const unused = catalog().filter((tag) => tag.count === 0);
+          const unused = catalog().filter(
+            (tag) => tag.count === 0 && !tag.disableTagging && !tag.hiddenFromSearch,
+          );
           for (const tag of unused) entities.delete(tag.id);
           return unused.length;
         }
         if (command === 'delete_tag') {
           entities.delete(Number(args.id));
+          tagOptions.delete(Number(args.id));
+          return;
+        }
+        if (command === 'set_tag_options') {
+          const id = Number(args.id);
+          const options = {
+            hiddenFromSearch: Boolean(args.hiddenFromSearch),
+            disableTagging: Boolean(args.disableTagging),
+          };
+          tagOptions.set(id, options);
+          images = images.map((photo) => ({
+            ...photo,
+            tags: photo.tags
+              .filter((tag) => !options.disableTagging || tag.id !== id)
+              .map((tag) =>
+                tag.id === id ? { ...tag, hiddenFromSearch: options.hiddenFromSearch } : tag,
+              ),
+          }));
           return;
         }
         if (command === 'rename_tag') {
@@ -495,6 +532,41 @@ test('tag sources are tinted and the manager shows usage, renames and purges unu
   await page.getByRole('button', { name: 'Close dialog' }).click();
   await page.getByRole('combobox', { name: 'Search images' }).fill('roadtrip');
   await expect(page.getByRole('button', { name: `Open ${photo.filename}` })).toBeVisible();
+});
+
+test('tag options hide search matches and block image tagging independently', async ({ page }) => {
+  const tag = fixtures[0].tags[0].name;
+  await page.setViewportSize({ width: 850, height: 650 });
+  await page.getByRole('button', { name: 'Manage tags', exact: true }).click();
+  await page.getByRole('textbox', { name: 'Search tags' }).fill(tag);
+  const hidden = page.getByRole('checkbox', { name: `Hide ${tag} from search` });
+  await hidden.check();
+  await expect(hidden).toBeChecked();
+  await page.getByRole('button', { name: 'Close dialog' }).click();
+  await page
+    .locator('article')
+    .first()
+    .hover({ position: { x: 8, y: 8 } });
+  await expect(page.getByRole('button', { name: tag, exact: true })).toHaveCount(0);
+  await page.getByRole('combobox', { name: 'Search images' }).fill(`#${JSON.stringify(tag)}`);
+  await expect(page.getByRole('button', { name: 'Open 01.jpg' })).toHaveCount(0);
+  await page.getByRole('combobox', { name: 'Search images' }).clear();
+  await page.getByRole('button', { name: 'Open 01.jpg' }).click({ position: { x: 8, y: 8 } });
+  await expect(page.getByRole('button', { name: `Remove tag ${tag}` })).toBeVisible();
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+
+  await page.getByRole('button', { name: 'Manage tags', exact: true }).click();
+  const disabled = page.getByRole('checkbox', { name: `Do not tag images with ${tag}` });
+  await disabled.click();
+  await expect(
+    page.getByText(`Remove ${tag} from 1 image and block new assignments?`),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Remove and block' }).click();
+  await expect(disabled).toBeChecked();
+  await expect(page.getByRole('row').filter({ hasText: tag })).toContainText('0');
+  await page.getByRole('button', { name: 'Close dialog' }).click();
+  await page.getByRole('button', { name: 'Open 01.jpg' }).click({ position: { x: 8, y: 8 } });
+  await expect(page.getByRole('button', { name: `Remove tag ${tag}` })).toHaveCount(0);
 });
 
 test('tag clicks appear in search and hashtag autocomplete supports keyboard, spaces, and mixed queries', async ({

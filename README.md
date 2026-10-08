@@ -64,7 +64,13 @@ not depend on this checkout remaining in place.
    AI tags stay neutral. Edits update search immediately.
 6. Use the settings button beside **Tags** to manage the shared tag catalog. Search,
    rename or merge tags, see image-use counts, filter unused tags, and purge orphans.
-   Only unused tags can be deleted; purge never removes an image's assigned tags.
+   **Hide from search** keeps a tag on its images but removes its name from text and
+   hashtag search, the sidebar, search suggestions, and grid tag links. The image
+   editor still shows it. **Do not tag images** removes existing assignments and
+   blocks folder, AI, and manual assignments until unchecked.
+   Tags with either setting stay in the catalog when unused tags are purged.
+   Delete requires an unused tag with both settings unchecked. Purge never removes
+   an image's assigned tags.
 7. Open **Options** to change the CPU thread count or check for updates. After
    classifying images at different settings, compare the image counts, median times,
    and average times there. The setting applies to the next classification batch.
@@ -83,9 +89,11 @@ each side stay mounted. Offscreen thumbnails and unused result pages leave the
 memory cache; scrolling back reloads them. Thumbnail decoding runs at most four
 requests at a time, and queued requests are canceled when their tiles leave view.
 
-Each nested directory below a configured folder contributes its name as a tag.
-For example, with a root of `Photos`, `Photos/Trips/Alps/image.jpg` gets `trips`
-and `alps`. The configured root and its parents do not become tags. Folder and
+Each nested directory below a configured folder contributes tags from its name.
+Spaces split words; dots, dashes, and underscores stay in the tag. With a root of
+`Photos`, `Photos/Alpine Meadows/scifi.clothes/image.jpg` gets `alpine`, `meadows`,
+and `scifi.clothes`.
+The configured root and its parents do not become tags. Folder and
 manual tags survive AI classification and file-content changes. Removing a folder
 tag from an image suppresses it on later scans, even after orphan cleanup.
 Renaming a tag updates all its images as a user edit; naming an existing tag merges
@@ -139,8 +147,9 @@ Typical Windows path: `%APPDATA%\ninja.domi.image-tag-manager\`.
 Tags are unique entities in `tags`, connected to images through `image_tags`.
 Each assignment records its source: AI, user, or folder. Repeated names are
 trimmed, lowercased, and deduplicated; use counts count distinct images. A tag can
-have several sources on one image. `images.tags_text` is a derived FTS cache,
-maintained by relationship triggers, not the authoritative tag store.
+have several sources on one image. `images.tags_text` is a derived FTS cache of tags
+that are not hidden from search. Relationship triggers maintain it; tag assignments
+are the authoritative store.
 
 Database changes use [Refinery](https://github.com/rust-db/refinery), with numbered SQL
 files embedded from `src-tauri/migrations/`. Applied versions, names, checksums, and

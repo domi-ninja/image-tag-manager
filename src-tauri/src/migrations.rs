@@ -148,6 +148,49 @@ mod tests {
         assert!(c.prepare("SELECT * FROM notes").is_ok());
     }
     #[test]
+    fn tag_options_upgrade_preserves_existing_tags_and_search() {
+        let mut c = Connection::open_in_memory().unwrap();
+        c.execute_batch("PRAGMA foreign_keys=ON").unwrap();
+        let migrations = runner().get_migrations().clone();
+        Runner::new(&migrations[..2])
+            .set_grouped(true)
+            .run(&mut c)
+            .unwrap();
+        c.execute_batch("INSERT INTO folders(id,path,name) VALUES(1,'photos','Photos');
+            INSERT INTO images(id,folder_id,path,filename,modified,size,seen) VALUES(1,1,'photos/a.jpg','a.jpg',1,1,'scan');
+            INSERT INTO tags(id,name) VALUES(1,'alps');
+            INSERT INTO image_tags(image_id,tag_id,source) VALUES(1,1,'folder');")
+            .unwrap();
+
+        run(&mut c).unwrap();
+        assert_eq!(
+            c.query_row("SELECT count(*) FROM image_tags", [], |row| row
+                .get::<_, i64>(0))
+                .unwrap(),
+            1
+        );
+        assert_eq!(
+            c.query_row(
+                "SELECT count(*) FROM image_search WHERE image_search MATCH 'alps'",
+                [],
+                |row| row.get::<_, i64>(0)
+            )
+            .unwrap(),
+            1
+        );
+        c.execute("UPDATE tags SET hidden_from_search=1 WHERE id=1", [])
+            .unwrap();
+        assert_eq!(
+            c.query_row(
+                "SELECT count(*) FROM image_search WHERE image_search MATCH 'alps'",
+                [],
+                |row| row.get::<_, i64>(0)
+            )
+            .unwrap(),
+            0
+        );
+    }
+    #[test]
     fn changed_checksum_and_unknown_unmanaged_schema_are_not_reset() {
         let mut c = Connection::open_in_memory().unwrap();
         run(&mut c).unwrap();

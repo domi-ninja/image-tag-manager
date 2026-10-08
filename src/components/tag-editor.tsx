@@ -27,11 +27,21 @@ export function TagEditor({
   });
   const text = query.trim().toLowerCase();
   const selected = new Set(tags.map((tag) => tag.toLowerCase()));
+  const blocked = library.data?.some((tag) => tag.name === text && tag.disableTagging);
   const suggestions = (library.data ?? [])
-    .filter((tag) => !selected.has(tag.name.toLowerCase()) && tag.name.toLowerCase().includes(text))
+    .filter(
+      (tag) =>
+        !tag.disableTagging &&
+        !selected.has(tag.name.toLowerCase()) &&
+        tag.name.toLowerCase().includes(text),
+    )
     .slice(0, 20);
   const canCreate =
-    text && !selected.has(text) && !suggestions.some((tag) => tag.name.toLowerCase() === text);
+    text &&
+    !selected.has(text) &&
+    !blocked &&
+    !library.isPending &&
+    !suggestions.some((tag) => tag.name.toLowerCase() === text);
 
   function add(tag: string) {
     onChange([...tags, tag]);
@@ -154,9 +164,11 @@ export function TagEditor({
               <p className="px-3 py-2 text-muted-foreground">
                 {selected.has(text)
                   ? 'This tag is already added.'
-                  : library.isPending
-                    ? 'Loading tags…'
-                    : 'Type to add a new tag.'}
+                  : blocked
+                    ? 'This tag is disabled for image tagging.'
+                    : library.isPending
+                      ? 'Loading tags…'
+                      : 'Type to add a new tag.'}
               </p>
             )}
           </Command.List>

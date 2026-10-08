@@ -505,6 +505,7 @@ function PhotoCard({
   const [failedSource, setFailedSource] = useState<string>();
   const previewFailed = thumb.isError || Boolean(thumb.data && failedSource === thumb.data);
   const previewLoading = !previewFailed && (!thumb.data || loadedSource !== thumb.data);
+  const visibleTags = photo.tags.filter((tag) => !tag.hiddenFromSearch);
   return (
     <PhotoContextMenu photoId={photo.id} onError={onError}>
       <article className="group relative min-w-0 bg-muted">
@@ -556,9 +557,9 @@ function PhotoCard({
               <p className="text-destructive">Preview unavailable. Open to review.</p>
             )}
           </button>
-          {photo.tags.length > 0 && (
+          {visibleTags.length > 0 && (
             <div className="flex flex-wrap gap-2">
-              {photo.tags.map((tag) => (
+              {visibleTags.map((tag) => (
                 <button
                   key={tag.id}
                   onClick={() => onTag(tag.name)}

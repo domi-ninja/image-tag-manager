@@ -266,7 +266,7 @@ impl Db {
             .collect();
         let fts = tokens.join(" AND ");
         let exact_tags = serde_json::to_string(&clean_tags(q.tags.clone()))?;
-        let condition="(?1 IS NULL OR i.folder_id=?1) AND (?2 IS NULL OR i.status=?2) AND (?3 IS NULL OR EXISTS(SELECT 1 FROM image_tags it JOIN tags t ON t.id=it.tag_id WHERE it.image_id=i.id AND t.name=?3)) AND NOT EXISTS(SELECT 1 FROM json_each(?5) wanted WHERE NOT EXISTS(SELECT 1 FROM image_tags it JOIN tags t ON t.id=it.tag_id WHERE it.image_id=i.id AND t.name=wanted.value))";
+        let condition="(?1 IS NULL OR i.folder_id=?1) AND (?2 IS NULL OR i.status=?2) AND (?3 IS NULL OR EXISTS(SELECT 1 FROM image_tags it JOIN tags t ON t.id=it.tag_id WHERE it.image_id=i.id AND t.name=?3 AND t.hidden_from_search=0)) AND NOT EXISTS(SELECT 1 FROM json_each(?5) wanted WHERE NOT EXISTS(SELECT 1 FROM image_tags it JOIN tags t ON t.id=it.tag_id WHERE it.image_id=i.id AND t.name=wanted.value AND t.hidden_from_search=0))";
         let condition = if fts.is_empty() {
             condition.to_string()
         } else {
@@ -335,6 +335,18 @@ impl Db {
         let names = clean_tags(classification.tags);
         if expected_modified.is_some() && names.is_empty() {
             bail!("Classification returned no tags");
+        }
+        if expected_modified.is_none() {
+            for name in &names {
+                let disabled: bool = tx.query_row(
+                    "SELECT EXISTS(SELECT 1 FROM tags WHERE name=?1 AND disable_tagging=1)",
+                    [name],
+                    |r| r.get(0),
+                )?;
+                if disabled {
+                    bail!("Tag '{name}' is disabled for image tagging");
+                }
+            }
         }
         let n=tx.execute("UPDATE images SET caption=?1,category=?2,status='classified',error=NULL WHERE id=?3 AND (?4 IS NULL OR (modified=?4 AND status='pending'))",params![classification.caption.trim(),classification.category,id,expected_modified])?;
         if n > 0 {

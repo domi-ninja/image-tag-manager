@@ -163,4 +163,5 @@ to bound memory usage.
 
 ## Developer docs
 
-See [development commands, builds, and releases](docs/development.md).
+See [architecture](docs/architecture.md) for the components and their data flow,
+and [development](docs/development.md) for commands, builds, and releases.

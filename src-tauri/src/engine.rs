@@ -267,18 +267,18 @@ mod tests {
         let db = Db::new(dir.path().join("db")).unwrap();
         db.add_folder(images.to_str().unwrap()).unwrap();
         let engine = Engine::new(db, dir.path().join("no-runtime"));
+        // Hold the worker before the monitor starts, so the first scan is definitely due.
+        engine.busy.store(true, Ordering::SeqCst);
         let monitor =
             engine.monitor_with_intervals(Duration::from_millis(80), Duration::from_millis(5));
+        std::thread::sleep(Duration::from_millis(120));
+        assert_eq!(engine.db.stats().unwrap().total, 0);
+        engine.busy.store(false, Ordering::SeqCst);
         wait_until(|| engine.db.stats().unwrap().total == 1 && !engine.busy.load(Ordering::SeqCst));
         assert!(!engine.status().unwrap().automatic);
         assert_eq!(engine.db.stats().unwrap().pending, 1);
         assert!(engine.server.lock().unwrap().is_none());
-        // Simulate another task holding the worker when the next scan becomes due.
-        engine.busy.store(true, Ordering::SeqCst);
         std::fs::write(images.join("two.jpg"), b"image").unwrap();
-        std::thread::sleep(Duration::from_millis(120));
-        assert_eq!(engine.db.stats().unwrap().total, 1);
-        engine.busy.store(false, Ordering::SeqCst);
         wait_until(|| engine.db.stats().unwrap().total == 2 && !engine.busy.load(Ordering::SeqCst));
         engine.shutdown();
         monitor.join().unwrap();

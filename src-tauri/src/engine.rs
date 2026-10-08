@@ -17,6 +17,7 @@ use std::{
 #[serde(rename_all = "camelCase")]
 pub struct Status {
     pub busy: bool,
+    pub pausing: bool,
     pub phase: String,
     pub message: String,
     pub processed: u64,
@@ -45,6 +46,7 @@ impl Engine {
             busy: AtomicBool::new(false),
             status: Mutex::new(Status {
                 busy: false,
+                pausing: false,
                 phase: "idle".into(),
                 message: "Ready".into(),
                 processed: 0,
@@ -60,6 +62,7 @@ impl Engine {
     pub fn status(&self) -> Result<Status> {
         let mut s = self.status.lock().unwrap().clone();
         s.busy = self.busy.load(Ordering::Relaxed);
+        s.pausing = s.busy && self.cancel.load(Ordering::Relaxed);
         s.model_ready = inference::model_ready(&inference::model_directory(&self.db.root));
         s.automatic = self.db.setting("automatic", "false")? == "true";
         s.cpu_threads = self.cpu_threads()?;

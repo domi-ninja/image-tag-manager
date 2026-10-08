@@ -57,6 +57,7 @@ export interface Stats {
 }
 export interface Status {
   busy: boolean;
+  pausing: boolean;
   phase: string;
   message: string;
   processed: number;

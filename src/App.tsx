@@ -81,6 +81,15 @@ export default function App() {
     },
     onError: (e) => setError(message(e)),
   });
+  const pauseAction = useMutation({
+    mutationFn: api.pause,
+    onSuccess: async () => {
+      setError('');
+      await client.invalidateQueries({ queryKey: ['status'] });
+    },
+    onError: (e) => setError(message(e)),
+  });
+  const pausing = busy && (status.data?.pausing || pauseAction.isPending);
   function change(next: Partial<Filter>) {
     thumbnails.galleryRef.current?.scrollTo({ top: 0 });
     setFilter((f) => ({ ...f, ...next, page: next.page ?? 0 }));
@@ -278,9 +287,20 @@ export default function App() {
                 Scan folders
               </Button>
               {busy ? (
-                <Button variant="outline" onClick={() => action.mutate(api.pause)}>
-                  <Pause />
-                  {status.data?.phase === 'download' ? 'Pause download' : 'Pause after image'}
+                <Button
+                  variant="outline"
+                  onClick={() => pauseAction.mutate()}
+                  disabled={pausing}
+                  aria-live="polite"
+                >
+                  {pausing ? <LoaderCircle className="motion-safe:animate-spin" /> : <Pause />}
+                  {pausing
+                    ? status.data?.phase === 'classify'
+                      ? 'Finishing current image…'
+                      : 'Pausing…'
+                    : status.data?.phase === 'download'
+                      ? 'Pause download'
+                      : 'Pause after image'}
                 </Button>
               ) : (
                 <Button

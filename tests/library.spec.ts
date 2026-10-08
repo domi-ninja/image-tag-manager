@@ -107,15 +107,19 @@ test.beforeEach(async ({ page }) => {
           document.body.dataset.trashedImage = String(args.id);
           return;
         }
-        if (command === 'status')
+        if (command === 'status') {
+          const classificationStatus = sessionStorage.getItem('classification-status');
           return {
-            busy: sessionStorage.getItem('classification-status') === 'running',
+            busy: classificationStatus === 'running' || classificationStatus === 'pausing',
+            pausing: classificationStatus === 'pausing',
             phase:
-              sessionStorage.getItem('classification-status') === 'running' ? 'classify' : 'idle',
+              classificationStatus === 'running' || classificationStatus === 'pausing'
+                ? 'classify'
+                : 'idle',
             message:
-              sessionStorage.getItem('classification-status') === 'running'
+              classificationStatus === 'running' || classificationStatus === 'pausing'
                 ? 'Classifying 01.jpg'
-                : sessionStorage.getItem('classification-status') === 'paused'
+                : classificationStatus === 'paused'
                   ? 'Paused. Unfinished images stay queued.'
                   : 'Up to date',
             processed: 0,
@@ -125,6 +129,7 @@ test.beforeEach(async ({ page }) => {
             cpuThreads,
             maxCpuThreads: 12,
           };
+        }
         if (command === 'classification_timings')
           return [
             { threads: 4, images: 5, medianMs: 2400, averageMs: 2600 },
@@ -242,7 +247,11 @@ test.beforeEach(async ({ page }) => {
           automatic = Boolean(args.enabled);
           return;
         }
-        if (command === 'start' || command === 'pause' || command === 'retry') return;
+        if (command === 'pause') {
+          sessionStorage.setItem('classification-status', 'pausing');
+          return;
+        }
+        if (command === 'start' || command === 'retry') return;
         if (command === 'plugin:dialog|open') return null;
         throw new Error(`Unexpected command: ${command}`);
       };
@@ -293,8 +302,13 @@ test('classification progress stays beside the counts in a single toolbar row', 
     true,
   );
 
+  await toolbar.getByRole('button', { name: 'Pause after image' }).click();
+  await expect(toolbar.getByRole('button', { name: 'Finishing current image…' })).toBeDisabled();
+  await expect(progress).toContainText('Classifying 01.jpg');
+
   await page.evaluate(() => sessionStorage.setItem('classification-status', 'paused'));
   await expect(progress).toHaveCount(0);
+  await expect(toolbar.getByRole('button', { name: 'Classify pending' })).toBeVisible();
   await expect(page.getByText('Paused. Unfinished images stay queued.')).toHaveCount(0);
 });
 test('folder configuration and deliberate removal', async ({ page }) => {

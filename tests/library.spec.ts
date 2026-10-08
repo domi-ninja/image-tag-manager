@@ -760,7 +760,7 @@ test('grid is seamless and shows preloaded details only on hover or keyboard foc
   const nextRow = boxes.find((box) => box.y > boxes[0].y)!;
   expect(nextRow.y).toBe(boxes[0].y + boxes[0].height);
   await page.screenshot({ path: 'test-results/seamless-grid.png' });
-  // With IPC disabled, hovering must still show every detail already in the grid result.
+  // Hover uses the data already in the grid result without fetching the description.
   await page.evaluate(() => {
     Object.assign(Reflect.get(window, '__TAURI_INTERNALS__'), {
       invoke: () => Promise.reject(new Error('No hover requests allowed')),
@@ -768,7 +768,8 @@ test('grid is seamless and shows preloaded details only on hover or keyboard foc
   });
   await first.hover();
   await expect(details).toBeVisible();
-  await expect(details).toContainText(fixtures[0].caption);
+  await expect(details).not.toContainText(fixtures[0].caption);
+  await expect(details).toContainText(fixtures[0].filename);
   await expect(
     details.getByRole('button', { name: fixtures[0].tags.at(-1)!.name, exact: true }),
   ).toBeVisible();
@@ -797,7 +798,8 @@ test('tiles show loading until ready and show failures instead of blank tiles', 
   await page.screenshot({ path: 'test-results/tiles-loading.png' });
   // Hover metadata remains available while thumbnails are still pending.
   await tile.hover({ position: { x: 8, y: 8 } });
-  await expect(grid.getByLabel('Details for 01.jpg')).toContainText(fixtures[0].caption);
+  await expect(grid.getByLabel('Details for 01.jpg')).toContainText(fixtures[0].filename);
+  await expect(grid.getByLabel('Details for 01.jpg')).not.toContainText(fixtures[0].caption);
   await page.mouse.move(0, 0);
   await page.evaluate(() => {
     sessionStorage.removeItem('hold-thumbnails');

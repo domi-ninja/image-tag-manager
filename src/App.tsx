@@ -549,29 +549,23 @@ function PhotoCard({
         </button>
         <div
           aria-label={`Details for ${photo.filename}`}
-          className="invisible absolute inset-x-0 bottom-0 z-10 max-h-[75%] space-y-3 overflow-y-auto bg-background/95 p-3 shadow-md group-hover:visible group-focus-within:visible"
+          className="invisible absolute inset-x-0 bottom-0 z-10 max-h-[75%] space-y-1 overflow-y-auto bg-background/95 p-2 shadow-md group-hover:visible group-focus-within:visible"
         >
           <button onClick={onSelect} className="block w-full space-y-2 text-left">
             <p className="break-all font-medium">{photo.filename}</p>
-            <p className="break-words text-muted-foreground">
-              {photo.caption ||
-                (photo.status === 'error'
-                  ? 'Classification failed. Open to review.'
-                  : 'Waiting for classification')}
-            </p>
             {photo.category && <p className="break-words">Category: {photo.category}</p>}
             {previewFailed && (
               <p className="text-destructive">Preview unavailable. Open to review.</p>
             )}
           </button>
           {visibleTags.length > 0 && (
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-1">
               {visibleTags.map((tag) => (
                 <button
                   key={tag.id}
                   onClick={() => onTag(tag.name)}
                   className={cn(
-                    'max-w-full break-words rounded border px-2 py-1 text-left hover:bg-muted',
+                    'max-w-full break-words rounded border px-1.5 py-0.5 text-left hover:bg-muted',
                     tag.sources.some((source) => source === 'user' || source === 'folder') &&
                       'border-sky-200 bg-sky-50 dark:border-sky-700 dark:bg-sky-900/40 dark:hover:bg-sky-900/60',
                   )}

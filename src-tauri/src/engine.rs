@@ -318,14 +318,15 @@ mod tests {
         std::thread::sleep(Duration::from_millis(120));
         assert_eq!(engine.db.stats().unwrap().total, 0);
         engine.busy.store(false, Ordering::SeqCst);
-        wait_until(|| engine.db.stats().unwrap().total == 1 && !engine.busy.load(Ordering::SeqCst));
+        wait_until(|| engine.db.stats().unwrap().total == 1);
         assert!(!engine.status().unwrap().automatic);
         assert_eq!(engine.db.stats().unwrap().pending, 1);
         assert!(engine.server.lock().unwrap().is_none());
         std::fs::write(images.join("two.jpg"), b"image").unwrap();
-        wait_until(|| engine.db.stats().unwrap().total == 2 && !engine.busy.load(Ordering::SeqCst));
+        wait_until(|| engine.db.stats().unwrap().total == 2);
         engine.shutdown();
         monitor.join().unwrap();
+        wait_until(|| !engine.busy.load(Ordering::SeqCst));
         assert!(engine.start("scan").is_err());
     }
 

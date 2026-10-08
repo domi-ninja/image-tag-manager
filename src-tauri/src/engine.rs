@@ -93,7 +93,7 @@ impl Engine {
                     let _ = me.db.set_setting("automatic", "false");
                 }
             } else if me.cancel.load(Ordering::Relaxed) {
-                me.update("idle", "Paused. Unfinished images stay queued.".into());
+                me.update("idle", "Paused".into());
             } else {
                 me.update("idle", "Up to date".into());
             }

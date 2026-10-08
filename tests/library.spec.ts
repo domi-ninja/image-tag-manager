@@ -108,9 +108,15 @@ test.beforeEach(async ({ page }) => {
         }
         if (command === 'status')
           return {
-            busy: false,
-            phase: 'idle',
-            message: 'Up to date',
+            busy: sessionStorage.getItem('classification-status') === 'running',
+            phase:
+              sessionStorage.getItem('classification-status') === 'running' ? 'classify' : 'idle',
+            message:
+              sessionStorage.getItem('classification-status') === 'running'
+                ? 'Classifying 01.jpg'
+                : sessionStorage.getItem('classification-status') === 'paused'
+                  ? 'Paused. Unfinished images stay queued.'
+                  : 'Up to date',
             processed: 0,
             modelReady: true,
             automatic,
@@ -245,6 +251,39 @@ test('search, edit tags, and search the edited index', async ({ page }) => {
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await page.getByRole('combobox', { name: 'Search images' }).fill('road trip');
   await expect(page.getByRole('button', { name: 'Open 01.jpg' })).toBeVisible();
+});
+test('classification progress stays beside the counts in a single toolbar row', async ({
+  page,
+}) => {
+  await page.evaluate(() => sessionStorage.setItem('classification-status', 'running'));
+  await page.reload();
+  const toolbar = page.locator('main#library > div').first();
+  const count = toolbar.getByText('6/6 classified', { exact: false });
+  const progress = toolbar.getByRole('status');
+  const scan = toolbar.getByRole('button', { name: 'Scan folders' });
+  await expect(count).toBeVisible();
+  await expect(progress).toContainText('Classifying 01.jpg');
+  await expect(toolbar.getByText('All images')).toHaveCount(0);
+  const positions = await Promise.all([count, progress, scan].map((item) => item.boundingBox()));
+  expect(
+    positions.every((position) => position && Math.abs(position.y - positions[0]!.y) < 8),
+  ).toBe(true);
+  await page.setViewportSize({ width: 850, height: 650 });
+  const narrowPositions = await Promise.all(
+    [count, progress, scan].map((item) => item.boundingBox()),
+  );
+  expect(
+    narrowPositions.every(
+      (position) => position && Math.abs(position.y - narrowPositions[0]!.y) < 8,
+    ),
+  ).toBe(true);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
+
+  await page.evaluate(() => sessionStorage.setItem('classification-status', 'paused'));
+  await expect(progress).toHaveCount(0);
+  await expect(page.getByText('Paused. Unfinished images stay queued.')).toHaveCount(0);
 });
 test('folder configuration and deliberate removal', async ({ page }) => {
   await page.getByRole('button', { name: 'Configure Photos' }).click();

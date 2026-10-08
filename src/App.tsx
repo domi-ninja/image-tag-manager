@@ -103,7 +103,6 @@ export default function App() {
       if (typeof path === 'string') await api.addFolder(path);
     });
   }
-  const currentFolder = folders.data?.find((f) => f.id === filter.folderId);
   const total = photos.data?.total ?? 0;
   const failure =
     error ||
@@ -237,15 +236,28 @@ export default function App() {
           </div>
         </aside>
         <main id="library" tabIndex={-1} className="flex min-w-0 flex-1 flex-col">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b p-4">
-            <div className="min-w-0">
-              <h2 className="truncate font-semibold">{currentFolder?.name ?? 'All images'}</h2>
-              <p className="mt-1 text-muted-foreground">
-                {stats.data?.classified ?? 0} classified · {stats.data?.pending ?? 0} pending
-                {Boolean(stats.data?.errors) && ` · ${stats.data?.errors} failed`}
-              </p>
-            </div>
-            <div className="flex gap-3">
+          <div className="flex items-center gap-3 overflow-x-auto whitespace-nowrap border-b p-4">
+            <span className="shrink-0 tabular-nums text-muted-foreground">
+              {stats.data?.classified ?? 0}/{stats.data?.total ?? 0} classified ·{' '}
+              {stats.data?.pending ?? 0} pending
+              {Boolean(stats.data?.errors) && ` · ${stats.data?.errors} failed`}
+            </span>
+            {(busy || status.data?.phase === 'error') && (
+              <span
+                className="flex min-w-32 flex-1 items-center gap-2 text-muted-foreground"
+                role="status"
+                aria-live="polite"
+              >
+                {busy && <LoaderCircle className="size-4 shrink-0 motion-safe:animate-spin" />}
+                <span className="truncate" title={status.data?.message}>
+                  {status.data?.message}
+                  {busy &&
+                    Boolean(status.data?.processed) &&
+                    ` · ${status.data?.processed} processed`}
+                </span>
+              </span>
+            )}
+            <div className="ml-auto flex shrink-0 gap-3">
               {Boolean(stats.data?.errors) && (
                 <Button
                   variant="outline"
@@ -391,7 +403,7 @@ export default function App() {
               />
             )}
           </div>
-          <footer className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t px-4 py-3">
+          <footer className="flex shrink-0 items-center justify-between gap-3 border-t px-4 py-3">
             <div
               role="group"
               aria-label="Thumbnail size"
@@ -421,27 +433,6 @@ export default function App() {
               </Button>
             </div>
             <span className="tabular-nums">{total.toLocaleString()} images</span>
-            <div
-              className="flex min-w-0 flex-1 items-center justify-center gap-3 text-muted-foreground"
-              role="status"
-              aria-live="polite"
-            >
-              {busy && <LoaderCircle className="size-4 shrink-0 motion-safe:animate-spin" />}
-              <span className="truncate" title={status.data?.message}>
-                {status.data?.message ?? 'Connecting…'}
-                {busy &&
-                  Boolean(status.data?.processed) &&
-                  ` · ${status.data?.processed} processed`}
-              </span>
-              {status.data?.phase === 'error' && stats.data?.errors !== 0 && (
-                <Button
-                  variant="ghost"
-                  onClick={() => action.mutate(() => api.retry(filter.folderId))}
-                >
-                  Retry failed
-                </Button>
-              )}
-            </div>
           </footer>
         </main>
       </div>

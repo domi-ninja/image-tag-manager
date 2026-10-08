@@ -1,25 +1,56 @@
 @import 'tailwindcss';
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
 @theme inline {
-  --color-background: #f7f7f2;
-  --color-foreground: #252a23;
-  --color-muted: #eaece3;
-  --color-muted-foreground: #60665b;
-  --color-primary: #3d583a;
-  --color-primary-foreground: #ffffff;
-  --color-border: #d8dccf;
-  --color-ring: #587c49;
-  --color-destructive: #a1352a;
+  --color-background: var(--app-background);
+  --color-foreground: var(--app-foreground);
+  --color-muted: var(--app-muted);
+  --color-muted-foreground: var(--app-muted-foreground);
+  --color-primary: var(--app-primary);
+  --color-primary-foreground: var(--app-primary-foreground);
+  --color-border: var(--app-border);
+  --color-ring: var(--app-ring);
+  --color-destructive: var(--app-destructive);
+  --color-destructive-foreground: var(--app-destructive-foreground);
 }
+
 @layer base {
+  :root {
+    --app-background: #f7f7f2;
+    --app-foreground: #252a23;
+    --app-muted: #eaece3;
+    --app-muted-foreground: #60665b;
+    --app-primary: #3d583a;
+    --app-primary-foreground: #ffffff;
+    --app-border: #d8dccf;
+    --app-ring: #587c49;
+    --app-destructive: #a1352a;
+    --app-destructive-foreground: #ffffff;
+    --app-selection: #d2dfca;
+    color-scheme: light;
+  }
+  :root[data-theme='dark'] {
+    --app-background: #30343b;
+    --app-foreground: #e6e8e9;
+    --app-muted: #3b414a;
+    --app-muted-foreground: #bac0c7;
+    --app-primary: #5f7b60;
+    --app-primary-foreground: #ffffff;
+    --app-border: #505862;
+    --app-ring: #9abb96;
+    --app-destructive: #ff9b94;
+    --app-destructive-foreground: #30343b;
+    --app-selection: #566e59;
+    color-scheme: dark;
+  }
   * {
-    border-color: var(--color-border);
+    border-color: var(--app-border);
   }
   html {
     font-family: 'Segoe UI', 'Noto Sans', sans-serif;
     font-size: 14px;
-    color: var(--color-foreground);
-    background: var(--color-background);
-    color-scheme: light;
+    color: var(--app-foreground);
+    background: var(--app-background);
   }
   body {
     margin: 0;
@@ -38,15 +69,15 @@
     cursor: pointer;
   }
   select {
-    background: var(--color-background);
-    color: var(--color-foreground);
+    background: var(--app-background);
+    color: var(--app-foreground);
   }
   :focus-visible {
-    outline: 2px solid var(--color-ring);
+    outline: 2px solid var(--app-ring);
     outline-offset: 2px;
   }
   ::selection {
-    background: #d2dfca;
+    background: var(--app-selection);
   }
 }
 @media (prefers-reduced-motion: reduce) {

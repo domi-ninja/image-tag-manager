@@ -79,7 +79,9 @@ export function TagEditor({
               aria-label={`Remove tag ${tag}`}
               title={origin}
               className={
-                userGiven ? 'max-w-full border-sky-200 bg-sky-50 hover:bg-sky-100' : 'max-w-full'
+                userGiven
+                  ? 'max-w-full border-sky-200 bg-sky-50 hover:bg-sky-100 dark:border-sky-700 dark:bg-sky-900/40 dark:hover:bg-sky-900/60'
+                  : 'max-w-full'
               }
               onClick={() => {
                 onChange(tags.filter((value) => value !== tag));

@@ -1075,3 +1075,42 @@ test('options compare classification timings and change CPU threads', async ({ p
   await page.getByRole('button', { name: 'Options' }).click();
   await expect(page.getByRole('combobox', { name: 'CPU threads' })).toBeDisabled();
 });
+
+test('appearance follows the system by default and saves explicit light or dark choices', async ({
+  page,
+}) => {
+  await page.getByRole('button', { name: 'Options' }).click();
+  const appearance = page.getByRole('combobox', { name: 'Appearance' });
+  await expect(appearance).toHaveValue('system');
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await expect(page.locator('html')).toHaveCSS('background-color', 'rgb(48, 52, 59)');
+  await expect(page.locator('html')).toHaveCSS('color-scheme', 'dark');
+  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute('content', '#30343b');
+  await expect(page.getByRole('button', { name: 'Options' })).toHaveCSS(
+    'color',
+    'rgb(230, 232, 233)',
+  );
+  await expect(page.getByRole('button', { name: 'Check for updates' })).toHaveCSS(
+    'color',
+    'rgb(230, 232, 233)',
+  );
+  await expect(page.getByRole('button', { name: 'Scan folders' })).toHaveCSS(
+    'background-color',
+    'rgb(48, 52, 59)',
+  );
+  await page.screenshot({ path: 'test-results/options-dark.png' });
+
+  await appearance.selectOption('light');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  await page.reload();
+  await page.getByRole('button', { name: 'Options' }).click();
+  await expect(page.getByRole('combobox', { name: 'Appearance' })).toHaveValue('light');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+
+  await page.getByRole('combobox', { name: 'Appearance' }).selectOption('dark');
+  await page.emulateMedia({ colorScheme: 'light' });
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await page.getByRole('combobox', { name: 'Appearance' }).selectOption('system');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+});

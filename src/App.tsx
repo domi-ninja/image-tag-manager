@@ -32,6 +32,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from './compone
 import { cn } from './lib/utils';
 import { useThumbnailSize } from './lib/use-thumbnail-size';
 import { useMiddleDragScroll } from './lib/use-middle-drag-scroll';
+import { useAppearance } from './lib/use-appearance';
 import { useViewerPreviews } from './lib/use-viewer-previews';
 import { loadThumbnail } from './lib/thumbnail-loader';
 import { useIndexUpdates } from './lib/use-index-updates';
@@ -51,6 +52,7 @@ export default function App() {
   const [tagManager, setTagManager] = useState(false);
   const thumbnails = useThumbnailSize(!selected && !folderEdit && !tagManager);
   useMiddleDragScroll(thumbnails.galleryRef);
+  const appearance = useAppearance();
   const status = useQuery({ queryKey: ['status'], queryFn: api.status, refetchInterval: 1000 });
   useIndexUpdates(status.data);
   const busy = status.data?.busy ?? false;
@@ -206,10 +208,10 @@ export default function App() {
             )}
           </div>
         </div>
-        <OptionsMenu status={status.data} />
+        <OptionsMenu status={status.data} {...appearance} />
       </header>
       <div className="flex min-h-0 flex-1">
-        <aside className="flex w-60 shrink-0 flex-col border-r bg-white/40">
+        <aside className="flex w-60 shrink-0 flex-col border-r bg-muted/40">
           <div className="flex items-center justify-between gap-3 p-3">
             <h2 className="font-medium">Folders</h2>
             <Button
@@ -357,7 +359,7 @@ export default function App() {
           {failure && (
             <div
               role="alert"
-              className="mx-4 mb-3 flex items-center justify-between gap-3 rounded-md border border-destructive/40 bg-red-50 p-3 text-destructive"
+              className="mx-4 mb-3 flex items-center justify-between gap-3 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-destructive"
             >
               <span>{failure}</span>
               <Button variant="ghost" aria-label="Dismiss error" onClick={() => setError('')}>
@@ -568,7 +570,7 @@ function PhotoCard({
                   className={cn(
                     'max-w-full break-words rounded border px-2 py-1 text-left hover:bg-muted',
                     tag.sources.some((source) => source === 'user' || source === 'folder') &&
-                      'border-sky-200 bg-sky-50',
+                      'border-sky-200 bg-sky-50 dark:border-sky-700 dark:bg-sky-900/40 dark:hover:bg-sky-900/60',
                   )}
                   title={`Search tag ${tag.name}`}
                 >

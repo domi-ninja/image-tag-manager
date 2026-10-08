@@ -10,7 +10,7 @@ const variants = cva(
         default: 'bg-primary text-primary-foreground hover:bg-primary/90',
         outline: 'border bg-background hover:bg-muted',
         ghost: 'hover:bg-muted',
-        destructive: 'bg-destructive text-white hover:bg-destructive/90',
+        destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
       },
     },
     defaultVariants: { variant: 'default' },

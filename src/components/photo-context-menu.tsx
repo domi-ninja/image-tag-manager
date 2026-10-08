@@ -28,7 +28,7 @@ export function PhotoContextMenu({
     <ContextMenu.Root>
       <ContextMenu.Trigger asChild>{children}</ContextMenu.Trigger>
       <ContextMenu.Portal>
-        <ContextMenu.Content className="z-[60] min-w-48 rounded-md border bg-white p-1 shadow-md">
+        <ContextMenu.Content className="z-[60] min-w-48 rounded-md border bg-background p-1 shadow-md">
           {actions.map(([value, label]) => (
             <ContextMenu.Item
               key={value}

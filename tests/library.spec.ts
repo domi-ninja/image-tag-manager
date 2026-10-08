@@ -144,6 +144,8 @@ test.beforeEach(async ({ page }) => {
           return;
         }
         if (command === 'folders') return folders;
+        if (command === 'stats' && sessionStorage.getItem('large-counts'))
+          return { total: 8468, classified: 3442, pending: 5026, errors: 0 };
         if (command === 'stats')
           return { total: images.length, classified: images.length, pending: 0, errors: 0 };
         if (command === 'thumbnail' && sessionStorage.getItem('hold-thumbnails')) {
@@ -273,31 +275,46 @@ test('search, edit tags, and search the edited index', async ({ page }) => {
   await page.getByRole('combobox', { name: 'Search images' }).fill('road trip');
   await expect(page.getByRole('button', { name: 'Open 01.jpg' })).toBeVisible();
 });
-test('classification progress stays beside the counts in a single toolbar row', async ({
-  page,
-}) => {
-  await page.evaluate(() => sessionStorage.setItem('classification-status', 'running'));
+test('classification progress and actions stay in the top bar', async ({ page }) => {
+  await page.evaluate(() => {
+    sessionStorage.setItem('classification-status', 'running');
+    sessionStorage.setItem('large-counts', 'true');
+  });
   await page.reload();
-  const toolbar = page.locator('main#library > div').first();
-  const count = toolbar.getByText('6/6 classified', { exact: false });
+  const toolbar = page.locator('header');
+  const count = toolbar.getByText('3442/8468 classified', { exact: false });
   const progress = toolbar.getByRole('status');
   const scan = toolbar.getByRole('button', { name: 'Scan folders' });
   await expect(count).toBeVisible();
   await expect(progress).toContainText('Classifying 01.jpg');
   await expect(toolbar.getByText('All images')).toHaveCount(0);
-  const positions = await Promise.all([count, progress, scan].map((item) => item.boundingBox()));
+  await expect(
+    page.locator('main#library').getByRole('button', { name: 'Scan folders' }),
+  ).toHaveCount(0);
+  const options = toolbar.getByRole('button', { name: 'Options' });
+  const positions = await Promise.all(
+    [count, progress, scan, options].map((item) => item.boundingBox()),
+  );
   expect(
     positions.every((position) => position && Math.abs(position.y - positions[0]!.y) < 8),
   ).toBe(true);
   await page.setViewportSize({ width: 850, height: 650 });
   const narrowPositions = await Promise.all(
-    [count, progress, scan].map((item) => item.boundingBox()),
+    [count, progress, scan, options].map((item) => item.boundingBox()),
   );
   expect(
     narrowPositions.every(
       (position) => position && Math.abs(position.y - narrowPositions[0]!.y) < 8,
     ),
   ).toBe(true);
+  expect(narrowPositions[2]!.x + narrowPositions[2]!.width).toBeLessThanOrEqual(
+    narrowPositions[3]!.x,
+  );
+  const controlsRight = await toolbar.locator(':scope > div').first().boundingBox();
+  const pauseRight = await toolbar.getByRole('button', { name: 'Pause after image' }).boundingBox();
+  expect(pauseRight!.x + pauseRight!.width).toBeLessThanOrEqual(
+    controlsRight!.x + controlsRight!.width + 1,
+  );
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true,
   );

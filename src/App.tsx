@@ -128,11 +128,82 @@ export default function App() {
       >
         Skip to images
       </a>
-      <header className="flex min-h-14 shrink-0 items-center justify-between gap-2 border-b px-4 py-2">
-        <h1 className="flex items-center gap-3 font-semibold">
+      <header className="flex min-h-14 shrink-0 items-center gap-2 border-b px-4 py-2">
+        <h1 className="flex shrink-0 items-center gap-3 whitespace-nowrap font-semibold">
           <Images className="size-5 text-primary" aria-hidden />
-          Image Tag Manager
+          <span className="sr-only lg:not-sr-only">Image Tag Manager</span>
         </h1>
+        <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto whitespace-nowrap">
+          <span className="shrink-0 tabular-nums text-muted-foreground">
+            {stats.data?.classified ?? 0}/{stats.data?.total ?? 0} classified ·{' '}
+            {stats.data?.pending ?? 0} pending
+            {Boolean(stats.data?.errors) && ` · ${stats.data?.errors} failed`}
+          </span>
+          {(busy || status.data?.phase === 'error') && (
+            <span
+              className="flex min-w-20 flex-1 items-center gap-2 text-muted-foreground"
+              role="status"
+              aria-live="polite"
+            >
+              {busy && <LoaderCircle className="size-4 shrink-0 motion-safe:animate-spin" />}
+              <span className="truncate" title={status.data?.message}>
+                {status.data?.message}
+                {busy &&
+                  Boolean(status.data?.processed) &&
+                  ` · ${status.data?.processed} processed`}
+              </span>
+            </span>
+          )}
+          <div className="ml-auto flex shrink-0 gap-2">
+            {Boolean(stats.data?.errors) && (
+              <Button
+                variant="outline"
+                disabled={busy || !status.data?.modelReady}
+                onClick={() =>
+                  action.mutate(async () => {
+                    await api.retry(filter.folderId);
+                    await api.start('classify');
+                  })
+                }
+              >
+                Retry failed
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              disabled={busy || !folders.data?.length}
+              onClick={() => action.mutate(() => api.start('scan'))}
+            >
+              <ScanLine />
+              Scan folders
+            </Button>
+            {busy ? (
+              <Button
+                variant="outline"
+                onClick={() => pauseAction.mutate()}
+                disabled={pausing}
+                aria-live="polite"
+              >
+                {pausing ? <LoaderCircle className="motion-safe:animate-spin" /> : <Pause />}
+                {pausing
+                  ? status.data?.phase === 'classify'
+                    ? 'Finishing current image…'
+                    : 'Pausing…'
+                  : status.data?.phase === 'download'
+                    ? 'Pause download'
+                    : 'Pause after image'}
+              </Button>
+            ) : (
+              <Button
+                disabled={!folders.data?.length || !status.data?.modelReady}
+                onClick={() => action.mutate(() => api.start('classify'))}
+              >
+                <Play />
+                Classify pending
+              </Button>
+            )}
+          </div>
+        </div>
         <OptionsMenu status={status.data} />
       </header>
       <div className="flex min-h-0 flex-1">
@@ -242,77 +313,6 @@ export default function App() {
           </div>
         </aside>
         <main id="library" tabIndex={-1} className="flex min-w-0 flex-1 flex-col">
-          <div className="flex items-center gap-3 overflow-x-auto whitespace-nowrap border-b p-4">
-            <span className="shrink-0 tabular-nums text-muted-foreground">
-              {stats.data?.classified ?? 0}/{stats.data?.total ?? 0} classified ·{' '}
-              {stats.data?.pending ?? 0} pending
-              {Boolean(stats.data?.errors) && ` · ${stats.data?.errors} failed`}
-            </span>
-            {(busy || status.data?.phase === 'error') && (
-              <span
-                className="flex min-w-32 flex-1 items-center gap-2 text-muted-foreground"
-                role="status"
-                aria-live="polite"
-              >
-                {busy && <LoaderCircle className="size-4 shrink-0 motion-safe:animate-spin" />}
-                <span className="truncate" title={status.data?.message}>
-                  {status.data?.message}
-                  {busy &&
-                    Boolean(status.data?.processed) &&
-                    ` · ${status.data?.processed} processed`}
-                </span>
-              </span>
-            )}
-            <div className="ml-auto flex shrink-0 gap-3">
-              {Boolean(stats.data?.errors) && (
-                <Button
-                  variant="outline"
-                  disabled={busy || !status.data?.modelReady}
-                  onClick={() =>
-                    action.mutate(async () => {
-                      await api.retry(filter.folderId);
-                      await api.start('classify');
-                    })
-                  }
-                >
-                  Retry failed
-                </Button>
-              )}
-              <Button
-                variant="outline"
-                disabled={busy || !folders.data?.length}
-                onClick={() => action.mutate(() => api.start('scan'))}
-              >
-                <ScanLine />
-                Scan folders
-              </Button>
-              {busy ? (
-                <Button
-                  variant="outline"
-                  onClick={() => pauseAction.mutate()}
-                  disabled={pausing}
-                  aria-live="polite"
-                >
-                  {pausing ? <LoaderCircle className="motion-safe:animate-spin" /> : <Pause />}
-                  {pausing
-                    ? status.data?.phase === 'classify'
-                      ? 'Finishing current image…'
-                      : 'Pausing…'
-                    : status.data?.phase === 'download'
-                      ? 'Pause download'
-                      : 'Pause after image'}
-                </Button>
-              ) : (
-                <Button
-                  disabled={!folders.data?.length || !status.data?.modelReady}
-                  onClick={() => action.mutate(() => api.start('classify'))}
-                >
-                  <Play />
-                  Classify pending
-                </Button>
-              )}
-            </div>
-          </div>
           {!status.data?.modelReady && !folders.error && (
             <section
               className="flex flex-wrap items-center justify-between gap-3 border-b bg-muted/60 p-4"

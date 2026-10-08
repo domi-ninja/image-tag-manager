@@ -147,6 +147,10 @@ test.beforeEach(async ({ page }) => {
           document.body.dataset.imageAction = JSON.stringify(args);
           return;
         }
+        if (command === 'folder_action') {
+          document.body.dataset.folderAction = JSON.stringify(args);
+          return;
+        }
         if (command === 'folders') return folders;
         if (command === 'stats' && sessionStorage.getItem('large-counts'))
           return { total: 8468, classified: 3442, pending: 5026, errors: 0 };
@@ -380,6 +384,26 @@ test('folder configuration and deliberate removal', async ({ page }) => {
   await page.getByRole('button', { name: 'Keep folder' }).click();
   await page.getByRole('button', { name: 'Close dialog' }).click();
   await expect(page.getByRole('button', { name: 'Configure References' })).toBeVisible();
+});
+test('folder context menu copies its path and opens it with the OS', async ({ page }) => {
+  const entry = page.locator('nav[aria-label="Image folders"] button[title="/photos"]');
+  await entry.click({ button: 'right' });
+  await expect(page.getByRole('menuitem')).toHaveText(['Copy folder path', 'Open folder']);
+  await page.getByRole('menuitem', { name: 'Copy folder path' }).click();
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-folder-action',
+    JSON.stringify({ id: folder.id, action: 'copy_path' }),
+  );
+
+  await entry.focus();
+  await page.keyboard.press('Shift+F10');
+  await page.getByRole('menuitem', { name: 'Open folder' }).click();
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-folder-action',
+    JSON.stringify({ id: folder.id, action: 'open' }),
+  );
+  await entry.click();
+  await expect(entry).toHaveAttribute('aria-current', 'page');
 });
 test('keyboard dialog, unsaved edits, empty search, and visual layout', async ({ page }) => {
   await page.getByRole('button', { name: 'Open 01.jpg' }).click({ position: { x: 8, y: 8 } });

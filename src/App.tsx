@@ -26,6 +26,7 @@ import { appendTagSearch, parseSearch } from './lib/search';
 import { TagManager } from './components/tag-manager';
 import { TagEditor } from './components/tag-editor';
 import { PhotoContextMenu } from './components/photo-context-menu';
+import { FolderContextMenu } from './components/folder-context-menu';
 import { Button } from './components/ui/button';
 import { Input, Textarea } from './components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from './components/ui/dialog';
@@ -238,22 +239,24 @@ export default function App() {
             </button>
             {folders.data?.map((folder) => (
               <div className="flex min-w-0 items-center gap-1" key={folder.id}>
-                <button
-                  className={cn(
-                    'flex min-w-0 flex-1 items-center gap-3 rounded-md p-3 text-left hover:bg-muted',
-                    filter.folderId === folder.id && 'bg-muted font-medium',
-                  )}
-                  onClick={() => change({ folderId: folder.id })}
-                  title={folder.path}
-                  aria-current={filter.folderId === folder.id ? 'page' : undefined}
-                >
-                  <FolderIcon className="size-4 shrink-0" />
-                  <span className="min-w-0 flex-1 truncate">
-                    {folder.name}
-                    {!folder.enabled && ' (paused)'}
-                  </span>
-                  <span className="tabular-nums">{folder.count}</span>
-                </button>
+                <FolderContextMenu folderId={folder.id} onError={setError}>
+                  <button
+                    className={cn(
+                      'flex min-w-0 flex-1 items-center gap-3 rounded-md p-3 text-left hover:bg-muted',
+                      filter.folderId === folder.id && 'bg-muted font-medium',
+                    )}
+                    onClick={() => change({ folderId: folder.id })}
+                    title={folder.path}
+                    aria-current={filter.folderId === folder.id ? 'page' : undefined}
+                  >
+                    <FolderIcon className="size-4 shrink-0" />
+                    <span className="min-w-0 flex-1 truncate">
+                      {folder.name}
+                      {!folder.enabled && ' (paused)'}
+                    </span>
+                    <span className="tabular-nums">{folder.count}</span>
+                  </button>
+                </FolderContextMenu>
                 <Button
                   variant="ghost"
                   className="px-2"

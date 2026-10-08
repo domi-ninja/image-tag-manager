@@ -82,8 +82,10 @@ export interface Classification {
   category: string | null;
 }
 export type ImageAction = 'copy_image' | 'copy_path' | 'reveal' | 'open';
+export type FolderAction = 'copy_path' | 'open';
 export const api = {
   imageAction: (id: number, action: ImageAction) => invoke<void>('image_action', { id, action }),
+  folderAction: (id: number, action: FolderAction) => invoke<void>('folder_action', { id, action }),
   folders: () => invoke<Folder[]>('folders'),
   addFolder: (path: string) => invoke<void>('add_folder', { path }),
   saveFolder: (folder: Folder) => invoke<void>('save_folder', { folder }),

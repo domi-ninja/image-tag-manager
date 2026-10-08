@@ -145,6 +145,13 @@ enum ImageAction {
     Open,
 }
 
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum FolderAction {
+    CopyPath,
+    Open,
+}
+
 #[tauri::command]
 async fn trash_photo(s: State<'_, AppState>, id: i64) -> Response<()> {
     let db = s.db.clone();
@@ -183,6 +190,37 @@ async fn image_action(
                 .open_path(photo.path, None::<&str>)
                 .map_err(err),
             ImageAction::CopyPath => unreachable!(),
+        }
+    })
+    .await
+    .map_err(err)?
+}
+
+#[tauri::command]
+async fn folder_action(
+    app: tauri::AppHandle,
+    s: State<'_, AppState>,
+    id: i64,
+    action: FolderAction,
+) -> Response<()> {
+    let db = s.db.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let folder = db
+            .folders()
+            .map_err(err)?
+            .into_iter()
+            .find(|folder| folder.id == id)
+            .ok_or("Folder is no longer in the index")?;
+        match action {
+            FolderAction::CopyPath => app.clipboard().write_text(folder.path).map_err(err),
+            FolderAction::Open => {
+                if !std::path::Path::new(&folder.path).is_dir() {
+                    return Err("Folder could not be found. It may have moved.".into());
+                }
+                app.opener()
+                    .open_path(folder.path, None::<&str>)
+                    .map_err(err)
+            }
         }
     })
     .await
@@ -261,7 +299,8 @@ pub fn run() {
             thumbnail,
             preview,
             trash_photo,
-            image_action
+            image_action,
+            folder_action
         ])
         .build(tauri::generate_context!())
         .expect("Could not initialize Image Tag Manager");

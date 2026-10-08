@@ -53,6 +53,7 @@ test.beforeEach(async ({ page }) => {
       const previewRequests: number[] = [];
       let folders = [folder];
       let automatic = false;
+      let cpuThreads = 8;
       const entities = new Map<number, string>(
         fixtures.flatMap((photo) => photo.tags.map((tag) => [tag.id, tag.name] as const)),
       );
@@ -121,7 +122,18 @@ test.beforeEach(async ({ page }) => {
             modelReady: true,
             automatic,
             revision: 1,
+            cpuThreads,
+            maxCpuThreads: 12,
           };
+        if (command === 'classification_timings')
+          return [
+            { threads: 4, images: 5, medianMs: 2400, averageMs: 2600 },
+            { threads: 8, images: 7, medianMs: 1800, averageMs: 1900 },
+          ];
+        if (command === 'set_cpu_threads') {
+          cpuThreads = Number(args.threads);
+          return;
+        }
         if (command === 'image_action') {
           document.body.dataset.imageAction = JSON.stringify(args);
           return;
@@ -906,9 +918,26 @@ test('detail image zooms at the pointer, pans, stays bounded, and resets on navi
 
 test('downloads an update while the library stays usable', async ({ page }) => {
   await page.goto('/');
+  await page.getByRole('button', { name: 'Options' }).click();
   await page.getByRole('button', { name: 'Check for updates' }).click();
   await page.getByRole('button', { name: 'Download update' }).click();
   await expect(page.getByText('Downloading update 10%')).toBeVisible();
   await expect(page.getByPlaceholder('Search images or #tags…')).toBeEnabled();
   await expect(page.getByText('Update ready · applies next launch')).toBeVisible();
+});
+test('options compare classification timings and change CPU threads', async ({ page }) => {
+  await expect(page.getByText('Local image library · Qwen · 8 CPU threads')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Options' }).click();
+  const threads = page.getByRole('combobox', { name: 'CPU threads' });
+  await expect(threads).toHaveValue('8');
+  await expect(page.getByRole('row', { name: '4 5 2.4 2.6' })).toBeVisible();
+  await expect(page.getByRole('row', { name: '8 7 1.8 1.9' })).toBeVisible();
+  await page.screenshot({ path: 'test-results/options.png' });
+  await threads.selectOption('4');
+  await expect(threads).toHaveValue('4');
+
+  await page.evaluate(() => sessionStorage.setItem('classification-status', 'running'));
+  await page.reload();
+  await page.getByRole('button', { name: 'Options' }).click();
+  await expect(page.getByRole('combobox', { name: 'CPU threads' })).toBeDisabled();
 });

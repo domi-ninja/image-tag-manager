@@ -63,6 +63,14 @@ export interface Status {
   modelReady: boolean;
   automatic: boolean;
   revision: number;
+  cpuThreads: number;
+  maxCpuThreads: number;
+}
+export interface ClassificationTiming {
+  threads: number;
+  images: number;
+  medianMs: number;
+  averageMs: number;
 }
 export interface Classification {
   tags: string[];
@@ -90,6 +98,8 @@ export const api = {
   purgeOrphanTags: () => invoke<number>('purge_orphan_tags'),
   stats: () => invoke<Stats>('stats'),
   status: () => invoke<Status>('status'),
+  setCpuThreads: (threads: number) => invoke<void>('set_cpu_threads', { threads }),
+  classificationTimings: () => invoke<ClassificationTiming[]>('classification_timings'),
   start: (action: 'scan' | 'classify' | 'download') => invoke<void>('start', { action }),
   pause: () => invoke<void>('pause'),
   automatic: (enabled: boolean) => invoke<void>('automatic', { enabled }),

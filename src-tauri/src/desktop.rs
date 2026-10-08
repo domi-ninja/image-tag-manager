@@ -1,5 +1,5 @@
 use crate::{
-    db::{Classification, Db, Folder, Page, Search, Stats},
+    db::{Classification, ClassificationTiming, Db, Folder, Page, Search, Stats},
     engine::{Engine, Status},
     inference,
     tags::{Tag, TagPage},
@@ -77,6 +77,14 @@ fn stats(s: State<AppState>) -> Response<Stats> {
 #[tauri::command]
 fn status(s: State<AppState>) -> Response<Status> {
     s.status().map_err(err)
+}
+#[tauri::command]
+fn set_cpu_threads(s: State<AppState>, threads: usize) -> Response<()> {
+    s.set_cpu_threads(threads).map_err(err)
+}
+#[tauri::command]
+fn classification_timings(s: State<AppState>) -> Response<Vec<ClassificationTiming>> {
+    s.db.classification_timings().map_err(err)
 }
 #[tauri::command]
 fn start(s: State<AppState>, action: String) -> Response<()> {
@@ -232,6 +240,8 @@ pub fn run() {
             purge_orphan_tags,
             stats,
             status,
+            set_cpu_threads,
+            classification_timings,
             start,
             pause,
             automatic,

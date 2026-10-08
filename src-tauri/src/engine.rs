@@ -23,6 +23,8 @@ pub struct Status {
     pub model_ready: bool,
     pub automatic: bool,
     pub revision: u64,
+    pub cpu_threads: usize,
+    pub max_cpu_threads: usize,
 }
 pub struct Engine {
     pub db: Db,
@@ -49,6 +51,8 @@ impl Engine {
                 model_ready: false,
                 automatic: false,
                 revision: 0,
+                cpu_threads: 0,
+                max_cpu_threads: 0,
             }),
             server: Mutex::new(None),
         })
@@ -58,7 +62,37 @@ impl Engine {
         s.busy = self.busy.load(Ordering::Relaxed);
         s.model_ready = inference::model_ready(&inference::model_directory(&self.db.root));
         s.automatic = self.db.setting("automatic", "false")? == "true";
+        s.cpu_threads = self.cpu_threads()?;
+        s.max_cpu_threads = max_cpu_threads();
         Ok(s)
+    }
+    fn cpu_threads(&self) -> Result<usize> {
+        let max = max_cpu_threads();
+        Ok(self
+            .db
+            .setting("cpu_threads", "8")?
+            .parse::<usize>()
+            .ok()
+            .filter(|threads| (1..=max).contains(threads))
+            .unwrap_or(8.min(max)))
+    }
+    pub fn set_cpu_threads(&self, threads: usize) -> Result<()> {
+        if !(1..=max_cpu_threads()).contains(&threads) {
+            anyhow::bail!("Choose a CPU thread count supported by this computer")
+        }
+        if self
+            .busy
+            .compare_exchange(false, true, Ordering::SeqCst, Ordering::Relaxed)
+            .is_err()
+        {
+            anyhow::bail!("Wait for the current task before changing CPU threads")
+        }
+        let result = self.db.set_setting("cpu_threads", &threads.to_string());
+        if result.is_ok() {
+            self.server.lock().unwrap().take();
+        }
+        self.busy.store(false, Ordering::SeqCst);
+        result
     }
     fn update(&self, phase: &str, message: String) {
         let mut s = self.status.lock().unwrap();
@@ -117,15 +151,17 @@ impl Engine {
         if !inference::model_ready(&models) {
             anyhow::bail!("Download the Qwen model to classify your indexed images")
         }
+        let threads = self.cpu_threads()?;
         let server = {
             let mut slot = self.server.lock().unwrap();
             if slot.is_none() {
-                self.update("loading", "Loading Qwen on 8 CPU threads…".into());
+                self.update("loading", format!("Loading Qwen on {threads} CPU threads…"));
                 *slot = Some(Arc::new(Server::start(
                     &self.runtime,
                     &models,
                     &self.db.root.join("llama-server.log"),
                     &self.cancel,
+                    threads,
                 )?));
             }
             Arc::clone(slot.as_ref().unwrap())
@@ -142,13 +178,18 @@ impl Engine {
                 continue;
             };
             self.update("classify", format!("Classifying {}", photo.filename));
+            let started = Instant::now();
             let result = server.classify(std::path::Path::new(&photo.path), &folder);
+            let elapsed_ms = started.elapsed().as_millis().min(i64::MAX as u128) as i64;
             if self.closing.load(Ordering::Relaxed) {
                 return Ok(());
             }
             match result {
                 Ok(result) => {
-                    self.db.store(photo.id, result, Some(photo.modified))?;
+                    if self.db.store(photo.id, result, Some(photo.modified))? {
+                        self.db
+                            .record_classification_timing(photo.id, threads, elapsed_ms)?;
+                    }
                     consecutive_failures = 0;
                 }
                 Err(e) => {
@@ -245,6 +286,9 @@ impl Engine {
         }
     }
 }
+fn max_cpu_threads() -> usize {
+    std::thread::available_parallelism().map_or(8, |count| count.get())
+}
 
 #[cfg(test)]
 mod tests {
@@ -302,5 +346,20 @@ mod tests {
         wait_until(|| !engine.busy.load(Ordering::SeqCst));
         assert_eq!(engine.status().unwrap().phase, "error");
         assert!(engine.status().unwrap().automatic);
+    }
+    #[test]
+    fn cpu_thread_setting_is_validated_and_persisted() {
+        let dir = tempfile::tempdir().unwrap();
+        let db = Db::new(dir.path().join("db")).unwrap();
+        let engine = Engine::new(db, dir.path().join("runtime"));
+        assert!(engine.set_cpu_threads(0).is_err());
+        assert!(engine.set_cpu_threads(max_cpu_threads() + 1).is_err());
+        engine.set_cpu_threads(1).unwrap();
+        assert_eq!(engine.status().unwrap().cpu_threads, 1);
+        let reopened = Engine::new(engine.db.clone(), dir.path().join("runtime"));
+        assert_eq!(reopened.status().unwrap().cpu_threads, 1);
+        engine.busy.store(true, Ordering::SeqCst);
+        assert!(engine.set_cpu_threads(1).is_err());
+        assert_eq!(engine.status().unwrap().cpu_threads, 1);
     }
 }

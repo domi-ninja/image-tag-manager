@@ -63,6 +63,14 @@ pub struct Stats {
     pub pending: i64,
     pub errors: i64,
 }
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ClassificationTiming {
+    pub threads: i64,
+    pub images: i64,
+    pub median_ms: i64,
+    pub average_ms: i64,
+}
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct Classification {
     pub tags: Vec<String>,
@@ -209,6 +217,43 @@ impl Db {
     }
     pub fn stats(&self) -> Result<Stats> {
         Ok(self.connect()?.query_row("SELECT count(*),coalesce(sum(status='classified'),0),coalesce(sum(status='pending'),0),coalesce(sum(status='error'),0) FROM images",[],|r|Ok(Stats{total:r.get(0)?,classified:r.get(1)?,pending:r.get(2)?,errors:r.get(3)?}))?)
+    }
+    /// Retain successful timings when an image later changes or leaves the library.
+    pub fn record_classification_timing(
+        &self,
+        image_id: i64,
+        threads: usize,
+        elapsed_ms: i64,
+    ) -> Result<()> {
+        self.connect()?.execute(
+            "INSERT INTO classification_timings(image_id,threads,elapsed_ms) VALUES(?1,?2,?3)",
+            params![image_id, threads as i64, elapsed_ms],
+        )?;
+        Ok(())
+    }
+    pub fn classification_timings(&self) -> Result<Vec<ClassificationTiming>> {
+        let c = self.connect()?;
+        let mut statement = c.prepare(
+            "WITH ordered AS (
+                SELECT threads, elapsed_ms,
+                    row_number() OVER (PARTITION BY threads ORDER BY elapsed_ms) AS position,
+                    count(*) OVER (PARTITION BY threads) AS images
+                FROM classification_timings
+            )
+            SELECT threads, max(images),
+                CAST(round(avg(CASE WHEN position IN ((images + 1) / 2, (images + 2) / 2) THEN elapsed_ms END)) AS INTEGER),
+                CAST(round(avg(elapsed_ms)) AS INTEGER)
+            FROM ordered GROUP BY threads ORDER BY threads",
+        )?;
+        let rows = statement.query_map([], |row| {
+            Ok(ClassificationTiming {
+                threads: row.get(0)?,
+                images: row.get(1)?,
+                median_ms: row.get(2)?,
+                average_ms: row.get(3)?,
+            })
+        })?;
+        Ok(rows.collect::<rusqlite::Result<_>>()?)
     }
     pub fn search(&self, q: &Search) -> Result<Page> {
         let c = self.connect()?;
@@ -592,6 +637,36 @@ mod tests {
         db.save_folder(f).unwrap();
         assert!(db.next().unwrap().is_none());
         assert_eq!(db.search(&Search::default()).unwrap().total, 1);
+    }
+    #[test]
+    fn classification_timings_group_by_thread_count_and_survive_image_removal() {
+        let (_dir, db, folder) = fixture();
+        let image_id = db.next().unwrap().unwrap().id;
+        for (threads, elapsed_ms) in [(8, 800), (8, 1200), (8, 1600), (4, 2000), (4, 4000)] {
+            db.record_classification_timing(image_id, threads, elapsed_ms)
+                .unwrap();
+        }
+        db.remove_folder(folder.id).unwrap();
+        let timings = db.classification_timings().unwrap();
+        assert_eq!(timings.len(), 2);
+        assert_eq!(
+            (
+                timings[0].threads,
+                timings[0].images,
+                timings[0].median_ms,
+                timings[0].average_ms
+            ),
+            (4, 2, 3000, 3000)
+        );
+        assert_eq!(
+            (
+                timings[1].threads,
+                timings[1].images,
+                timings[1].median_ms,
+                timings[1].average_ms
+            ),
+            (8, 3, 1200, 1200)
+        );
     }
     #[test]
     fn folder_tag_status_filters_and_pagination() {

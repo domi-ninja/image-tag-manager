@@ -65,6 +65,9 @@ not depend on this checkout remaining in place.
 6. Use the settings button beside **Tags** to manage the shared tag catalog. Search,
    rename or merge tags, see image-use counts, filter unused tags, and purge orphans.
    Only unused tags can be deleted; purge never removes an image's assigned tags.
+7. Open **Options** to change the CPU thread count or check for updates. After
+   classifying images at different settings, compare the image counts, median times,
+   and average times there. The setting applies to the next classification batch.
 
 Resize thumbnails with **Ctrl+scroll** over the image grid or **Ctrl+plus/minus**.
 The footer has matching buttons and shows the width. Sizes range from 160 to 640
@@ -116,15 +119,17 @@ previously tested Qwen model; it is not the original Transformers/BF16 runtime.
 The model revision and checksums are pinned in `src-tauri/src/inference.rs`.
 The native runtime is llama.cpp `b11384`, pinned in `scripts/prepare-runtime.mjs`.
 
-Inference and prompt processing use **8 CPU threads**, GPU offload is disabled,
-and images are processed one at a time. The model stays loaded between batches.
+Inference and prompt processing use 8 CPU threads by default. Change the count in
+**Options**. GPU offload is disabled, and images are processed one at a time. The
+model stays loaded between batches at the selected thread count.
 The local server binds to a random loopback port with a per-run API key; the web UI
 has no network model access. Only initial model/runtime downloads use the internet.
 Do not interpret generated tags as verified facts; edit questionable details.
 
 Tauri's per-user application data directory stores:
 
-- `index.sqlite3`: folders, image metadata, tags, captions, categories, settings, FTS5.
+- `index.sqlite3`: folders, image metadata, tags, captions, categories, settings,
+  classification timings, FTS5.
 - `models/`: downloaded GGUF weights and verification markers.
 - `thumbnails/`: cached JPEG previews.
 - `llama-server.log`: native inference diagnostics.

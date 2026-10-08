@@ -35,7 +35,7 @@ fn main() -> Result<()> {
     }
     let models = inference::model_directory(&root);
     inference::download(&models, &cancel, |s| println!("{s}"))?;
-    let server = Server::start(runtime, &models, &root.join("llama-server.log"), &cancel)?;
+    let server = Server::start(runtime, &models, &root.join("llama-server.log"), &cancel, 8)?;
     for _ in 0..limit {
         let Some(photo) = db.next()? else { break };
         let folder = db

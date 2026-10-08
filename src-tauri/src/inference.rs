@@ -176,7 +176,13 @@ impl Server {
             let _ = child.wait();
         }
     }
-    pub fn start(runtime: &Path, models: &Path, log: &Path, cancel: &AtomicBool) -> Result<Self> {
+    pub fn start(
+        runtime: &Path,
+        models: &Path,
+        log: &Path,
+        cancel: &AtomicBool,
+        threads: usize,
+    ) -> Result<Self> {
         if !model_ready(models) {
             bail!("Download the Qwen model first")
         }
@@ -197,11 +203,11 @@ impl Server {
             .arg(models.join(MODEL))
             .arg("--mmproj")
             .arg(models.join(PROJECTOR))
+            .arg("--threads")
+            .arg(threads.to_string())
+            .arg("--threads-batch")
+            .arg(threads.to_string())
             .args([
-                "--threads",
-                "8",
-                "--threads-batch",
-                "8",
                 "--n-gpu-layers",
                 "0",
                 "--no-mmproj-offload",

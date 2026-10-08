@@ -55,9 +55,10 @@ is not configured. Model weights download on first use and are not in the instal
 
 ## Automatic updates
 
-The app checks GitHub Releases at startup. Choose **Download update** to download
-and verify it while continuing to use the library. **Update ready** means it will
-activate on the next launch, without requiring another network connection.
+The app checks GitHub Releases at startup. Open **Options**, then choose
+**Download update** to download and verify it while continuing to use the library.
+**Update ready** means it will activate on the next launch, without another
+network connection.
 Linux replaces its AppImage and restarts; Windows launches the per-user NSIS
 installer silently and reopens the updated app. A failed activation is not retried
 in a loop: open the existing app and download the update again. Deb/MSI installs
@@ -68,8 +69,7 @@ src-tauri/tauri.conf.json together (and update Cargo.lock). Commit, tag with
 `v<version>`, then push the commit and tag to the GitHub remote.
 The release workflow builds Linux x64 and Windows x64, signs update packages,
 and publishes the draft only after both succeed. It generates latest.json for
-the app's update endpoint. Until the first release is published, update checks
-will report that the endpoint is unavailable.
+the app's update endpoint.
 
 The public verification key is committed in tauri.conf.json. The private signing
 key is configured as the GitHub secret TAURI_SIGNING_PRIVATE_KEY; its local backup
@@ -82,7 +82,7 @@ still show SmartScreen warnings for a first installation.
 
 ```sh
 pnpm build:web
-cargo test --manifest-path src-tauri/Cargo.toml --lib
+cargo test --manifest-path src-tauri/Cargo.toml --lib --features desktop
 cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --features desktop -- -D warnings
 pnpm exec playwright install chromium
 pnpm exec playwright test

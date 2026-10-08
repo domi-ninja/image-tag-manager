@@ -1,4 +1,3 @@
-import { AppUpdates } from './components/app-updates';
 import { useDeferredValue, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { open } from '@tauri-apps/plugin-dialog';
@@ -35,6 +34,7 @@ import { useThumbnailSize } from './lib/use-thumbnail-size';
 import { useViewerPreviews } from './lib/use-viewer-previews';
 import { loadThumbnail } from './lib/thumbnail-loader';
 import { useIndexUpdates } from './lib/use-index-updates';
+import { OptionsMenu } from './components/options-menu';
 
 const initialFilter: Filter = { query: '', folderId: null, status: null, page: 0 };
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
@@ -119,15 +119,12 @@ export default function App() {
       >
         Skip to images
       </a>
-      <header className="flex min-h-14 shrink-0 flex-wrap items-center justify-between gap-2 border-b px-4 py-2">
+      <header className="flex min-h-14 shrink-0 items-center justify-between gap-2 border-b px-4 py-2">
         <h1 className="flex items-center gap-3 font-semibold">
           <Images className="size-5 text-primary" aria-hidden />
           Image Tag Manager
         </h1>
-        <span className="hidden text-muted-foreground 2xl:block">
-          Local image library · Qwen · 8 CPU threads
-        </span>
-        <AppUpdates />
+        <OptionsMenu status={status.data} />
       </header>
       <div className="flex min-h-0 flex-1">
         <aside className="flex w-60 shrink-0 flex-col border-r bg-white/40">

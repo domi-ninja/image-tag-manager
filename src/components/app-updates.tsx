@@ -38,7 +38,7 @@ export function AppUpdates() {
     action.mutate('check_update');
   };
   return (
-    <div className="flex items-center gap-2 text-sm">
+    <div className="flex flex-wrap items-center gap-2">
       {!dismissed && update?.phase === 'available' && (
         <>
           <span role="status">Version {update.version} available</span>

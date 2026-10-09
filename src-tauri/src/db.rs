@@ -2,7 +2,11 @@ use crate::tags::{self, PhotoTag, TagSource};
 use anyhow::{bail, Context, Result};
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::{
+    collections::HashMap,
+    fs::File,
+    io::{BufReader, Read},
     path::{Path, PathBuf},
     time::{Duration, UNIX_EPOCH},
 };
@@ -70,6 +74,19 @@ pub struct ClassificationTiming {
     pub images: i64,
     pub median_ms: i64,
     pub average_ms: i64,
+}
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DuplicateImage {
+    pub id: i64,
+    pub path: String,
+    pub filename: String,
+    pub modified: i64,
+}
+#[derive(Serialize)]
+pub struct DuplicateGroup {
+    pub hash: String,
+    pub images: Vec<DuplicateImage>,
 }
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct Classification {
@@ -201,6 +218,69 @@ impl Db {
         tx.execute("DELETE FROM images WHERE path=?1", [&path])?;
         tx.commit()?;
         Ok(())
+    }
+    /// Hash only indexed files whose sizes match; a size match alone is not a duplicate.
+    pub fn find_duplicates(&self) -> Result<Vec<DuplicateGroup>> {
+        let c = self.connect()?;
+        let mut statement = c.prepare(
+            "SELECT id,path,filename,size,modified FROM images
+             WHERE size IN (SELECT size FROM images GROUP BY size HAVING count(*) > 1)
+             ORDER BY size,id",
+        )?;
+        let candidates = statement.query_map([], |row| {
+            Ok((
+                DuplicateImage {
+                    id: row.get(0)?,
+                    path: row.get(1)?,
+                    filename: row.get(2)?,
+                    modified: row.get(4)?,
+                },
+                row.get::<_, i64>(3)?,
+            ))
+        })?;
+        let mut by_hash: HashMap<String, Vec<DuplicateImage>> = HashMap::new();
+        for candidate in candidates {
+            let (image, indexed_size) = candidate?;
+            let file = match File::open(&image.path) {
+                Ok(file) => file,
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+                Err(error) => return Err(error).with_context(|| format!("Reading {}", image.path)),
+            };
+            if file.metadata()?.len() != indexed_size as u64 {
+                continue;
+            }
+            let mut reader = BufReader::new(file);
+            let mut hasher = Sha256::new();
+            let mut buffer = [0_u8; 64 * 1024];
+            loop {
+                let count = reader.read(&mut buffer)?;
+                if count == 0 {
+                    break;
+                }
+                hasher.update(&buffer[..count]);
+            }
+            by_hash
+                .entry(format!("{:x}", hasher.finalize()))
+                .or_default()
+                .push(image);
+        }
+        let mut groups: Vec<_> = by_hash
+            .into_iter()
+            .filter_map(|(hash, mut images)| {
+                if images.len() < 2 {
+                    return None;
+                }
+                images.sort_by(|a, b| a.path.cmp(&b.path));
+                Some(DuplicateGroup { hash, images })
+            })
+            .collect();
+        groups.sort_by(|a, b| {
+            b.images
+                .len()
+                .cmp(&a.images.len())
+                .then_with(|| a.images[0].path.cmp(&b.images[0].path))
+        });
+        Ok(groups)
     }
     pub fn setting(&self, key: &str, default: &str) -> Result<String> {
         Ok(self
@@ -501,6 +581,30 @@ mod tests {
         std::fs::remove_file(&photo.path).unwrap();
         assert!(db.trash_photo(photo.id).is_err());
         assert!(db.photo(photo.id).is_ok());
+    }
+
+    #[test]
+    fn duplicate_finder_compares_file_bytes_and_skips_missing_files() {
+        let (dir, db, folder) = fixture();
+        let images = dir.path().join("photos");
+        std::fs::write(images.join("same-a.jpg"), b"same").unwrap();
+        std::fs::write(images.join("same-b.jpg"), b"same").unwrap();
+        std::fs::write(images.join("different.jpg"), b"diff").unwrap();
+        db.scan(&folder, &AtomicBool::new(false)).unwrap();
+        let groups = db.find_duplicates().unwrap();
+        assert_eq!(groups.len(), 1);
+        assert_eq!(groups[0].images.len(), 2);
+        assert_eq!(
+            groups[0]
+                .images
+                .iter()
+                .map(|image| image.filename.as_str())
+                .collect::<Vec<_>>(),
+            ["same-a.jpg", "same-b.jpg"]
+        );
+        assert_eq!(groups[0].hash.len(), 64);
+        std::fs::remove_file(images.join("same-b.jpg")).unwrap();
+        assert!(db.find_duplicates().unwrap().is_empty());
     }
 
     #[test]

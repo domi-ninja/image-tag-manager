@@ -1,5 +1,5 @@
 use crate::{
-    db::{Classification, ClassificationTiming, Db, Folder, Page, Search, Stats},
+    db::{Classification, ClassificationTiming, Db, DuplicateGroup, Folder, Page, Search, Stats},
     engine::{Engine, Status},
     inference,
     tags::{Tag, TagPage},
@@ -161,6 +161,14 @@ async fn trash_photo(s: State<'_, AppState>, id: i64) -> Response<()> {
 }
 
 #[tauri::command]
+async fn find_duplicates(s: State<'_, AppState>) -> Response<Vec<DuplicateGroup>> {
+    let db = s.db.clone();
+    tauri::async_runtime::spawn_blocking(move || db.find_duplicates().map_err(err))
+        .await
+        .map_err(err)?
+}
+
+#[tauri::command]
 async fn image_action(
     app: tauri::AppHandle,
     s: State<'_, AppState>,
@@ -299,6 +307,7 @@ pub fn run() {
             thumbnail,
             preview,
             trash_photo,
+            find_duplicates,
             image_action,
             folder_action
         ])

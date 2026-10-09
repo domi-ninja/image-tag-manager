@@ -7,6 +7,7 @@ import { PhotoContextMenu } from './photo-context-menu';
 type View = { scale: number; x: number; y: number };
 const FIT: View = { scale: 1, x: 0, y: 0 };
 const MAX_ZOOM = 8;
+const CONTROLS_HEIGHT = 64;
 
 export function ZoomablePreview({
   photoId,
@@ -37,11 +38,15 @@ export function ZoomablePreview({
     return () => observer.disconnect();
   }, []);
   const fit = imageSize.width
-    ? Math.min(bounds.width / imageSize.width, bounds.height / imageSize.height)
+    ? Math.min(
+        bounds.width / imageSize.width,
+        Math.max(0, bounds.height - CONTROLS_HEIGHT) / imageSize.height,
+      )
     : 1;
+  const imageHeight = Math.max(0, bounds.height - CONTROLS_HEIGHT);
   function constrain(next: View): View {
     const maxX = Math.max(0, (imageSize.width * fit * next.scale - bounds.width) / 2);
-    const maxY = Math.max(0, (imageSize.height * fit * next.scale - bounds.height) / 2);
+    const maxY = Math.max(0, (imageSize.height * fit * next.scale - imageHeight) / 2);
     return {
       scale: next.scale,
       x: Math.max(-maxX, Math.min(maxX, next.x)),
@@ -73,7 +78,7 @@ export function ZoomablePreview({
         zoom(
           Math.exp(-Math.max(-500, Math.min(500, delta)) * 0.002),
           event.clientX - rect.left - rect.width / 2,
-          event.clientY - rect.top - rect.height / 2,
+          event.clientY - rect.top - (rect.height - CONTROLS_HEIGHT) / 2,
         );
       }
       element.addEventListener('wheel', onWheel, { passive: false });
@@ -88,7 +93,7 @@ export function ZoomablePreview({
         aria-label="Image preview"
         aria-busy={loading}
         tabIndex={0}
-        className="relative grid min-h-0 min-w-0 touch-none select-none place-items-center overflow-hidden bg-muted"
+        className="relative min-h-0 min-w-0 touch-none select-none overflow-hidden bg-muted"
         style={{ cursor: shown.scale > 1 ? (dragging ? 'grabbing' : 'grab') : 'zoom-in' }}
         onDoubleClick={(event) => {
           if ((event.target as HTMLElement).closest('[data-zoom-controls]')) return;
@@ -98,7 +103,7 @@ export function ZoomablePreview({
             zoom(
               2,
               event.clientX - rect.left - rect.width / 2,
-              event.clientY - rect.top - rect.height / 2,
+              event.clientY - rect.top - (rect.height - CONTROLS_HEIGHT) / 2,
             );
         }}
         onKeyDown={(event) => {
@@ -169,7 +174,7 @@ export function ZoomablePreview({
               });
               setView(FIT);
             }}
-            className="block size-full object-contain"
+            className="absolute inset-x-0 top-0 h-[calc(100%-4rem)] w-full object-contain"
             style={{ transform: `translate(${shown.x}px, ${shown.y}px) scale(${shown.scale})` }}
           />
         )}

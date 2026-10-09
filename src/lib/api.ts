@@ -76,6 +76,16 @@ export interface ClassificationTiming {
   medianMs: number;
   averageMs: number;
 }
+export interface DuplicateImage {
+  id: number;
+  path: string;
+  filename: string;
+  modified: number;
+}
+export interface DuplicateGroup {
+  hash: string;
+  images: DuplicateImage[];
+}
 export interface Classification {
   tags: string[];
   caption: string;
@@ -115,6 +125,7 @@ export const api = {
   savePhoto: (id: number, classification: Classification) =>
     invoke<void>('save_photo', { id, classification }),
   trashPhoto: (id: number) => invoke<void>('trash_photo', { id }),
+  findDuplicates: () => invoke<DuplicateGroup[]>('find_duplicates'),
   thumbnail: (id: number) => invoke<string>('thumbnail', { id }),
   preview: (id: number) => invoke<string>('preview', { id }),
 };

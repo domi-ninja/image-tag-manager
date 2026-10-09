@@ -111,6 +111,20 @@ test.beforeEach(async ({ page }) => {
           document.body.dataset.trashedImage = String(args.id);
           return;
         }
+        if (command === 'find_duplicates')
+          return images.length >= 2
+            ? [
+                {
+                  hash: 'a'.repeat(64),
+                  images: images.slice(0, 2).map((photo) => ({
+                    id: photo.id,
+                    path: photo.path,
+                    filename: photo.filename,
+                    modified: photo.modified,
+                  })),
+                },
+              ]
+            : [];
         if (command === 'status') {
           const classificationStatus = sessionStorage.getItem('classification-status');
           return {
@@ -166,6 +180,8 @@ test.beforeEach(async ({ page }) => {
           if (args.id === 3) throw new Error('Image file unavailable');
         }
         if (command === 'thumbnail' || command === 'preview') {
+          if (command === 'preview' && sessionStorage.getItem('portrait-preview'))
+            return 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="300" height="900"%3E%3Crect width="300" height="900" fill="%23aabbcc"/%3E%3C/svg%3E';
           if (command === 'thumbnail' && args.id === 1) {
             document.body.dataset.firstThumbnailRequests = String(++firstThumbnailRequests);
           }
@@ -1100,6 +1116,49 @@ test('options compare classification timings and change CPU threads', async ({ p
   await page.reload();
   await page.getByRole('button', { name: 'Options' }).click();
   await expect(page.getByRole('combobox', { name: 'CPU threads' })).toBeDisabled();
+});
+
+test('duplicate finder groups matching images and trashes a row without confirmation', async ({
+  page,
+}) => {
+  await page.getByRole('button', { name: 'Options' }).click();
+  await page.getByRole('button', { name: 'Find duplicates' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Find duplicates' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText('1 group · 2 images')).toBeVisible();
+  await expect(dialog.getByText('/photos/01.jpg')).toBeVisible();
+  await dialog.screenshot({ path: 'test-results/duplicates.png' });
+  const bounds = await dialog.boundingBox();
+  expect(bounds!.width).toBeGreaterThan(900);
+  expect(bounds!.height).toBeGreaterThan(600);
+  await dialog.getByRole('button', { name: 'Trash /photos/01.jpg' }).click();
+  await expect(page.locator('body')).toHaveAttribute('data-trashed-image', '1');
+  await expect(dialog.getByText('No duplicates found.')).toBeVisible();
+  await expect(page.getByRole('alertdialog')).toHaveCount(0);
+  await dialog.getByRole('button', { name: 'Close dialog' }).click();
+  await page.getByRole('button', { name: 'Options' }).click();
+  const automatic = page.getByRole('checkbox', { name: 'Classify automatically' });
+  await expect(automatic).toBeVisible();
+  await automatic.check();
+  await expect(automatic).toBeChecked();
+  await expect(page.locator('aside').getByText('Classify automatically')).toHaveCount(0);
+});
+
+test('portrait preview fits above the zoom controls', async ({ page }) => {
+  await page.evaluate(() => sessionStorage.setItem('portrait-preview', 'true'));
+  await page.getByRole('button', { name: 'Open 01.jpg' }).click({ position: { x: 8, y: 8 } });
+  const preview = page.getByLabel('Image preview', { exact: true });
+  const image = preview.locator('img');
+  await expect(image).toBeVisible();
+  await expect
+    .poll(() => image.evaluate((element) => (element as HTMLImageElement).naturalHeight))
+    .toBe(900);
+  const imageBox = await image.boundingBox();
+  const controlBox = await preview.getByRole('group', { name: 'Image zoom' }).boundingBox();
+  const visibleHeight = Math.min(imageBox!.height, imageBox!.width * 3);
+  const imageBottom = imageBox!.y + (imageBox!.height + visibleHeight) / 2;
+  expect(imageBottom).toBeLessThanOrEqual(controlBox!.y + 1);
+  await page.screenshot({ path: 'test-results/portrait-viewer.png' });
 });
 
 test('appearance follows the system by default and saves explicit light or dark choices', async ({

@@ -33,8 +33,9 @@ not depend on this checkout remaining in place.
    to finish; you can also use **Scan folders** at any time.
 2. Download the model once with **Download model**. It downloads 2.65 GB from Qwen's
    official repository, checks SHA-256, and resumes interrupted downloads.
-3. Choose **Classify pending**, or enable **Classify automatically**. Automatic mode
-   checks the indexed pending queue every 30 seconds while the app is open.
+3. Choose **Classify pending**. If you close the app mid-batch, it resumes after
+   the next launch and startup scan. **Classify automatically** is in **Options**;
+   it checks the pending queue every 30 seconds while the app is open.
 4. Search tags, captions, filenames, and categories. Words use prefix matching and
    combine with AND. Click a tag to insert it into the search field as `#tag`.
    Type `#` followed by a name for autocomplete. Names with spaces use
@@ -71,16 +72,17 @@ not depend on this checkout remaining in place.
    Tags with either setting stay in the catalog when unused tags are purged.
    Delete requires an unused tag with both settings unchecked. Purge never removes
    an image's assigned tags.
-7. Open **Options** to change the CPU thread count or check for updates. After
-   classifying images at different settings, compare the image counts, median times,
-   and average times there. The setting applies to the next classification batch.
+7. Open **Options** to find exact file duplicates, change the CPU thread count,
+   or check for updates. The duplicate list has a Trash button for each file.
+   After classifying images at different settings, compare image counts, median
+   times, and average times there. The thread setting applies to the next batch.
 
 Resize thumbnails with **Ctrl+scroll** over the image grid or **Ctrl+plus/minus**.
 The footer has matching buttons and shows the width. Sizes range from 160 to 640
 pixels and are remembered on this device. Ordinary scrolling and text size stay unchanged.
 
 The grid shows edge-to-edge images without labels or icons. Hover over an image
-or focus it with the keyboard to show its filename, caption, category, and clickable
+or focus it with the keyboard to show its filename, category, and clickable
 tags. These details are loaded with the grid and appear immediately.
 Pending thumbnails show a loading indicator until the image is ready to display;
 failed previews show an explicit message. Loaded tiles have no permanent decorations.

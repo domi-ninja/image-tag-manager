@@ -302,22 +302,6 @@ export default function App() {
               ))}
             </div>
           </div>
-          <div className="space-y-3 border-t p-3">
-            <label className="flex cursor-pointer items-center gap-3">
-              <input
-                type="checkbox"
-                checked={status.data?.automatic ?? false}
-                onChange={(e) => action.mutate(() => api.automatic(e.target.checked))}
-                disabled={!status.data?.modelReady}
-                className="size-4 accent-primary"
-              />
-              Classify automatically
-            </label>
-            <p className="text-muted-foreground">
-              Enabled folders are scanned at startup and hourly. Automatic classification checks the
-              queue every 30 seconds.
-            </p>
-          </div>
         </aside>
         <main id="library" tabIndex={-1} className="flex min-w-0 flex-1 flex-col">
           {!status.data?.modelReady && !folders.error && (

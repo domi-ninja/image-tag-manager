@@ -41,7 +41,8 @@ after indexing or classification changes the database.
 Scanning walks each enabled folder and updates SQLite records for supported image
 files. Search uses the FTS5 index and returns pages of results. The original images
 stay in their folders; thumbnails live in the app data directory. The explicit
-Trash action moves an original to the system trash.
+Trash action moves an original to the system trash. The duplicate finder hashes
+same-size files with SHA-256 and groups exact matches.
 
 Classification takes the next pending image from SQLite, sends it to a local
 `llama-server` process, then stores its caption, category, and tags. The model files
@@ -49,6 +50,9 @@ are downloaded on demand; the native llama.cpp runtime is [prepared during deskt
 builds](../scripts/prepare-runtime.mjs) and bundled with the app. Successful
 classifications also record elapsed time and CPU thread count in SQLite, which the
 Options menu uses for its timing comparison.
+The worker records an active classification batch in SQLite. After a restart,
+the monitor rescans enabled folders, then resumes that batch. It also rescans
+hourly while the app is open.
 
 ## Build and release
 

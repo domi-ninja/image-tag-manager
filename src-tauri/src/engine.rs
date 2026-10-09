@@ -117,6 +117,12 @@ impl Engine {
         {
             anyhow::bail!("A task is already running")
         }
+        if action == "classify" {
+            if let Err(error) = self.db.set_setting("classify_pending", "true") {
+                self.busy.store(false, Ordering::SeqCst);
+                return Err(error);
+            }
+        }
         self.cancel.store(false, Ordering::Relaxed);
         let me = Arc::clone(self);
         let action = action.to_string();
@@ -124,6 +130,9 @@ impl Engine {
         self.status.lock().unwrap().processed = 0;
         std::thread::spawn(move || {
             let result = me.work(&action);
+            if action == "classify" && !me.closing.load(Ordering::Relaxed) {
+                let _ = me.db.set_setting("classify_pending", "false");
+            }
             if let Err(e) = result {
                 me.update("error", format!("{e:#}"));
                 if action == "classify" {
@@ -229,6 +238,12 @@ impl Engine {
 
     pub fn pause(&self) -> Result<()> {
         self.db.set_setting("automatic", "false")?;
+        if matches!(
+            self.status.lock().unwrap().phase.as_str(),
+            "classify" | "loading"
+        ) {
+            self.db.set_setting("classify_pending", "false")?;
+        }
         self.cancel.store(true, Ordering::Relaxed);
         Ok(())
     }
@@ -241,6 +256,7 @@ impl Engine {
                 "classify" | "loading"
             )
         {
+            self.db.set_setting("classify_pending", "false")?;
             self.cancel.store(true, Ordering::Relaxed);
         }
         Ok(())
@@ -267,10 +283,14 @@ impl Engine {
                         }
                     } else if now >= next_classify {
                         next_classify = now + Duration::from_secs(30);
-                        if me
+                        if (me
                             .db
                             .setting("automatic", "false")
                             .is_ok_and(|s| s == "true")
+                            || me
+                                .db
+                                .setting("classify_pending", "false")
+                                .is_ok_and(|s| s == "true"))
                             && me.db.next().is_ok_and(|photo| photo.is_some())
                         {
                             let _ = me.start("classify");
@@ -331,6 +351,34 @@ mod tests {
         monitor.join().unwrap();
         wait_until(|| !engine.busy.load(Ordering::SeqCst));
         assert!(engine.start("scan").is_err());
+    }
+
+    #[test]
+    fn pending_classification_attempts_to_resume_after_restart() {
+        let dir = tempfile::tempdir().unwrap();
+        let images = dir.path().join("photos");
+        std::fs::create_dir(&images).unwrap();
+        std::fs::write(images.join("one.jpg"), b"image").unwrap();
+        let db = Db::new(dir.path().join("db")).unwrap();
+        db.add_folder(images.to_str().unwrap()).unwrap();
+        let folder = db.folders().unwrap().remove(0);
+        db.scan(&folder, &AtomicBool::new(false)).unwrap();
+        db.set_setting("classify_pending", "true").unwrap();
+        let engine = Engine::new(db, dir.path().join("no-runtime"));
+        let monitor =
+            engine.monitor_with_intervals(Duration::from_secs(60), Duration::from_millis(5));
+        wait_until(|| engine.status().unwrap().phase == "error");
+        assert!(engine
+            .status()
+            .unwrap()
+            .message
+            .contains("Download the Qwen model"));
+        assert_eq!(
+            engine.db.setting("classify_pending", "true").unwrap(),
+            "false"
+        );
+        engine.shutdown();
+        monitor.join().unwrap();
     }
 
     #[test]

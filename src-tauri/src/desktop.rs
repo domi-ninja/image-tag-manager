@@ -20,9 +20,7 @@ fn folders(s: State<AppState>) -> Response<Vec<Folder>> {
 #[tauri::command]
 fn add_folder(s: State<AppState>, path: String) -> Response<()> {
     s.db.add_folder(&path).map_err(err)?;
-    if !s.status().map_err(err)?.busy {
-        s.start("scan").map_err(err)?;
-    }
+    s.request_scan();
     Ok(())
 }
 #[tauri::command]

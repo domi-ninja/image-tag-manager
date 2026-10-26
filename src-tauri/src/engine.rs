@@ -33,6 +33,7 @@ pub struct Engine {
     pub cancel: AtomicBool,
     pub closing: AtomicBool,
     busy: AtomicBool,
+    scan_requested: AtomicBool,
     status: Mutex<Status>,
     server: Mutex<Option<Arc<Server>>>,
 }
@@ -44,6 +45,7 @@ impl Engine {
             cancel: AtomicBool::new(false),
             closing: AtomicBool::new(false),
             busy: AtomicBool::new(false),
+            scan_requested: AtomicBool::new(false),
             status: Mutex::new(Status {
                 busy: false,
                 pausing: false,
@@ -261,6 +263,9 @@ impl Engine {
         }
         Ok(())
     }
+    pub fn request_scan(&self) {
+        self.scan_requested.store(true, Ordering::SeqCst);
+    }
     pub fn monitor(self: &Arc<Self>) {
         self.monitor_with_intervals(Duration::from_secs(60 * 60), Duration::from_secs(1));
     }
@@ -276,10 +281,14 @@ impl Engine {
             while !me.closing.load(Ordering::Relaxed) {
                 let now = Instant::now();
                 if !me.busy.load(Ordering::Relaxed) {
-                    // An overdue scan stays due while another task is running.
-                    if now >= next_scan {
+                    // Take requests before starting: requests made during the scan stay pending.
+                    let requested = me.scan_requested.swap(false, Ordering::SeqCst);
+                    if requested || now >= next_scan {
                         if me.start("scan").is_ok() {
                             next_scan = now + scan_interval;
+                        } else if requested {
+                            // Another task can win the idle-to-start race. Retry next idle poll.
+                            me.request_scan();
                         }
                     } else if now >= next_classify {
                         next_classify = now + Duration::from_secs(30);
@@ -351,6 +360,32 @@ mod tests {
         monitor.join().unwrap();
         wait_until(|| !engine.busy.load(Ordering::SeqCst));
         assert!(engine.start("scan").is_err());
+    }
+
+    #[test]
+    fn a_folder_requested_while_busy_is_scanned_on_the_next_idle_poll() {
+        let dir = tempfile::tempdir().unwrap();
+        let db = Db::new(dir.path().join("db")).unwrap();
+        let engine = Engine::new(db, dir.path().join("no-runtime"));
+        let monitor =
+            engine.monitor_with_intervals(Duration::from_secs(3600), Duration::from_millis(5));
+        wait_until(|| {
+            engine.status().unwrap().message == "Up to date" && !engine.busy.load(Ordering::SeqCst)
+        });
+        engine.busy.store(true, Ordering::SeqCst);
+        let images = dir.path().join("new-photos");
+        std::fs::create_dir(&images).unwrap();
+        std::fs::write(images.join("one.jpg"), b"image").unwrap();
+        engine.db.add_folder(images.to_str().unwrap()).unwrap();
+        engine.request_scan();
+        std::thread::sleep(Duration::from_millis(30));
+        assert_eq!(engine.db.stats().unwrap().total, 0);
+        assert!(engine.scan_requested.load(Ordering::SeqCst));
+        engine.busy.store(false, Ordering::SeqCst);
+        wait_until(|| engine.db.stats().unwrap().total == 1);
+        engine.shutdown();
+        monitor.join().unwrap();
+        wait_until(|| !engine.busy.load(Ordering::SeqCst));
     }
 
     #[test]

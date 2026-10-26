@@ -78,6 +78,9 @@ test.beforeEach(async ({ page }) => {
         return { id, name, sources: ['user'], hiddenFromSearch: false };
       }
       const invoke = async (command: string, args: Record<string, unknown> = {}) => {
+        if (command === sessionStorage.getItem('failed-command')) {
+          throw new Error('Requested service failed');
+        }
         if (command === 'update_status')
           return {
             phase: sessionStorage.getItem('update-phase') ?? 'idle',
@@ -1199,3 +1202,12 @@ test('appearance follows the system by default and saves explicit light or dark 
   await page.getByRole('combobox', { name: 'Appearance' }).selectOption('system');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
 });
+
+for (const command of ['folders', 'search']) {
+  test(`query errors from ${command} have no ineffective dismiss control`, async ({ page }) => {
+    await page.evaluate((command) => sessionStorage.setItem('failed-command', command), command);
+    await page.reload();
+    await expect(page.getByRole('alert')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Dismiss error' })).toHaveCount(0);
+  });
+}

@@ -106,8 +106,9 @@ classification instructions. Categories and instructions apply to future classif
 Qwen still generates free-form tags when categories are supplied. Unknown categories
 become null. Tagging uses a schema-constrained JSON response.
 
-Originals are never moved, renamed, or deleted. Removing a folder deletes only its
-index entries. Changed files return to the queue; files removed from a successfully
+Scanning and removing a folder leave original files untouched. Removing a folder
+deletes only its index entries. Selecting Trash moves the selected original to the
+system trash. Changed files return to the queue; files removed from a successfully
 scanned folder disappear from the index. An unavailable folder retains its entries
 and reports an error; disable it or restore access before running classification.
 Overlapping roots are rejected to avoid duplicate indexing. Symlinks are not followed.

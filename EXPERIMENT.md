@@ -9,8 +9,16 @@ these photos, not a claim of universal accuracy.
 | Model | Task and result on 20 random photos | Median CPU time/image | Weight file |
 | --- | --- | --- | --- |
 | Qwen3-VL-2B-Instruct | Main subjects right in 20/20 by assistant visual review; 13 clean passes, 7 with questionable specifics | 12.86 s | 3.96 GiB |
-| MobileCLIP2-S2 | Matches predefined category on 19/20; expected category in top 5 on 20/20 | 65 ms | 380 MiB |
-| SigLIP 2 Base | Matches predefined category on 18/20; expected category in top 5 on 20/20 | 90 ms | 1.40 GiB |
+| MobileCLIP2-S2 | Matches determinate reference category on 17/18; expected category in top 5 on 18/18 | 65 ms | 380 MiB |
+| SigLIP 2 Base | Matches determinate reference category on 16/18; expected category in top 5 on 18/18 | 90 ms | 1.40 GiB |
+
+Photos 06 and 08 remain in the sample, but their reference categories are
+indeterminate: the images do not establish sunset rather than sunrise, or a wall
+rather than decking. The category scores above exclude these two photos from both
+numerator and denominator. [Revised category scores](results/category-evaluation.json)
+can be regenerated with `node scripts/evaluate-reference-categories.mjs`.
+The original result JSON and rendered sheets retain the original 20-image scoring
+and pre-review annotation hash; model predictions and timings have not been changed.
 
 The free-tagging review and fixed-label match rates measure different tasks.
 One image separates the two encoders, so this sample cannot establish a reliable

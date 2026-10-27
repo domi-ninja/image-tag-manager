@@ -317,11 +317,60 @@ pub fn thumbnail(db: &crate::db::Db, id: i64) -> Result<String> {
         fs::read(path)?
     } else {
         let bytes = jpeg(Path::new(&photo.path), 360)?;
-        fs::write(path, &bytes)?;
+        let temporary = path.with_extension(format!("{}.tmp", uuid::Uuid::new_v4()));
+        let result = (|| -> std::io::Result<()> {
+            fs::write(&temporary, &bytes)?;
+            fs::rename(&temporary, &path)
+        })();
+        if result.is_err() {
+            let _ = fs::remove_file(&temporary);
+        }
+        result?;
         bytes
     };
     Ok(data_url(&bytes))
 }
 pub fn model_directory(root: &Path) -> PathBuf {
     root.join("models")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn concurrent_thumbnail_requests_publish_complete_jpegs() {
+        let dir = tempfile::tempdir().unwrap();
+        let images = dir.path().join("photos");
+        fs::create_dir(&images).unwrap();
+        image::RgbImage::new(1200, 800)
+            .save(images.join("one.jpg"))
+            .unwrap();
+        let db = crate::db::Db::new(dir.path().join("db")).unwrap();
+        db.add_folder(images.to_str().unwrap()).unwrap();
+        let folder = db.folders().unwrap().remove(0);
+        db.scan(&folder, &AtomicBool::new(false)).unwrap();
+        let photo = db.next().unwrap().unwrap();
+        let barrier = std::sync::Arc::new(std::sync::Barrier::new(8));
+        let workers: Vec<_> = (0..8)
+            .map(|_| {
+                let db = db.clone();
+                let barrier = barrier.clone();
+                std::thread::spawn(move || {
+                    barrier.wait();
+                    thumbnail(&db, photo.id).unwrap()
+                })
+            })
+            .collect();
+        let results: Vec<_> = workers.into_iter().map(|w| w.join().unwrap()).collect();
+        assert!(results.iter().all(|result| result == &results[0]));
+        let cached = fs::read_dir(db.root.join("thumbnails"))
+            .unwrap()
+            .map(|entry| entry.unwrap().path())
+            .collect::<Vec<_>>();
+        assert_eq!(cached.len(), 1);
+        let decoded = image::open(&cached[0]).unwrap();
+        assert_eq!(decoded.width(), 360);
+        assert_eq!(thumbnail(&db, photo.id).unwrap(), results[0]);
+    }
 }

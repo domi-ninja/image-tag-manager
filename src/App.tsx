@@ -349,9 +349,11 @@ export default function App() {
               className="mx-4 mb-3 flex items-center justify-between gap-3 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-destructive"
             >
               <span>{failure}</span>
-              <Button variant="ghost" aria-label="Dismiss error" onClick={() => setError('')}>
-                <X />
-              </Button>
+              {error && (
+                <Button variant="ghost" aria-label="Dismiss error" onClick={() => setError('')}>
+                  <X />
+                </Button>
+              )}
             </div>
           )}
           <div

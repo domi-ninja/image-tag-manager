@@ -1,0 +1,31 @@
+{
+  "method": "Post-review category scoring. Original model predictions and timings are unchanged; categories marked indeterminate are excluded from both numerator and denominator.",
+  "excluded": [
+    {
+      "image": "06.jpg",
+      "reason": "Low sunlight is visible, but the image does not establish sunset rather than sunrise."
+    },
+    {
+      "image": "08.jpg",
+      "reason": "Wooden boards and plants are visible, but the image does not establish a wall rather than decking."
+    }
+  ],
+  "evaluations": [
+    {
+      "model": "mobileclip",
+      "evaluated": 18,
+      "top1Matches": 17,
+      "top5Matches": 18,
+      "top1": 0.9444444444444444,
+      "top5": 1
+    },
+    {
+      "model": "siglip",
+      "evaluated": 18,
+      "top1Matches": 16,
+      "top5Matches": 18,
+      "top1": 0.8888888888888888,
+      "top5": 1
+    }
+  ]
+}

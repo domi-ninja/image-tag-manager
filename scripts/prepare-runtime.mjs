@@ -1,15 +1,29 @@
 import { mkdir, readFile, access, readdir, copyFile, rm, writeFile, chmod } from 'node:fs/promises';
 import { createWriteStream } from 'node:fs';
+import { verifyRuntimeArchive } from './runtime-archive.mjs';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 const tag = 'b11384';
+// GitHub release asset digests for ggml-org/llama.cpp b11384.
 const targets = {
-  'linux-x64': 'ubuntu-x64.tar.gz',
-  'win32-x64': 'win-cpu-x64.zip',
-  'darwin-arm64': 'macos-arm64.tar.gz',
-  'darwin-x64': 'macos-x64.tar.gz',
+  'linux-x64': {
+    archive: 'ubuntu-x64.tar.gz',
+    sha256: 'fb688a481d4d18d7528445f6732a7a68b9bdd46d57e977c369197376c2860bf3',
+  },
+  'win32-x64': {
+    archive: 'win-cpu-x64.zip',
+    sha256: '1a393712446149dc94d52eee13acfb7bb9fdd277217025d5c44407fc272b9e66',
+  },
+  'darwin-arm64': {
+    archive: 'macos-arm64.tar.gz',
+    sha256: 'b8a8d0a086643d1581c6d3d72047d54c9f9772bf997831e8f7dd653bcd22645d',
+  },
+  'darwin-x64': {
+    archive: 'macos-x64.tar.gz',
+    sha256: 'acd668f7b705c9b6344b41a9193f3b990855220acbb3a61864d5653d9d572eac',
+  },
 };
 const target = targets[`${process.platform}-${process.arch}`];
 if (!target)
@@ -17,7 +31,7 @@ if (!target)
     'No bundled runtime for this OS/architecture. Supported: Windows/Linux x64, macOS arm64/x64.',
   );
 const dir = path.resolve('src-tauri/runtime');
-const stamp = `${tag}/${process.platform}/${process.arch}`;
+const stamp = `${tag}/${process.platform}/${process.arch}/${target.sha256}`;
 const executable = process.platform === 'win32' ? 'llama-server.exe' : 'llama-server';
 try {
   if ((await readFile(path.join(dir, 'platform-version.txt'), 'utf8')).trim() === stamp) {
@@ -30,16 +44,17 @@ try {
 }
 const staging = path.resolve('.runtime-download');
 await mkdir(staging, { recursive: true });
-const archive = path.join(staging, target);
+const archive = path.join(staging, target.archive);
 console.log(`Downloading llama.cpp ${tag} for ${process.platform}/${process.arch}`);
 const response = await fetch(
-  `https://github.com/ggml-org/llama.cpp/releases/download/${tag}/llama-${tag}-bin-${target}`,
+  `https://github.com/ggml-org/llama.cpp/releases/download/${tag}/llama-${tag}-bin-${target.archive}`,
 );
 if (!response.ok || !response.body) throw new Error(`Runtime download: ${response.status}`);
 await pipeline(Readable.fromWeb(response.body), createWriteStream(archive));
+await verifyRuntimeArchive(archive, target.sha256);
 const unpack = path.join(staging, 'unpack');
 await mkdir(unpack, { recursive: true });
-if (target.endsWith('.zip'))
+if (target.archive.endsWith('.zip'))
   execFileSync(
     'powershell.exe',
     [
